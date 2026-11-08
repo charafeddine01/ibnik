@@ -100,11 +100,14 @@ class _LoginScreenState extends State<LoginScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
             onPressed: () async {
-              if (controller.text.isNotEmpty) {
-                await _authService.sendPasswordReset(controller.text);
+              final email = controller.text.trim();
+              if (email.isNotEmpty) {
+                final messenger = ScaffoldMessenger.of(context);
+                final nav = Navigator.of(ctx);
+                await _authService.sendPasswordReset(email);
                 if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  nav.pop();
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Password reset link sent! Check your inbox.')),
                   );
                 }

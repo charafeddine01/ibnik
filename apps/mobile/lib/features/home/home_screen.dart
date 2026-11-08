@@ -133,9 +133,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: const Icon(Icons.logout_rounded, color: Colors.white70, size: 20),
                     tooltip: 'Sign Out',
                     onPressed: () async {
+                      final nav = Navigator.of(context);
                       await _authService.signOut();
                       if (mounted) {
-                        Navigator.of(context).pushReplacement(
+                        nav.pushReplacement(
                           MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
                         );
                       }
@@ -166,9 +167,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       TextButton(
                         onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           await _authService.sendEmailVerification();
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               const SnackBar(content: Text('Verification email resent! Check your inbox.')),
                             );
                           }
@@ -220,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: const Row(
                           children: [
                             Icon(Icons.info_outline, color: Colors.white38, size: 22),
-                            const SizedBox(width: 12),
+                            SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 'No baby cameras paired yet. Tap "Baby Unit" below on your second phone to add it permanently.',

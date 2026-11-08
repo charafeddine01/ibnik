@@ -77,12 +77,12 @@ class FirestoreSignalingService {
           for (final change in candSnap.docChanges) {
             if (change.type == DocumentChangeType.added) {
               final candData = change.doc.data() as Map<String, dynamic>? ?? {};
-              webrtcService.addCandidate(SignalingMessage(
+              unawaited(webrtcService.addCandidate(SignalingMessage(
                 type: 'candidate',
                 roomId: callId,
                 senderId: 'parent',
                 payload: candData,
-              ));
+              )));
             }
           }
         });
@@ -179,12 +179,12 @@ class FirestoreSignalingService {
           for (final change in candSnap.docChanges) {
             if (change.type == DocumentChangeType.added) {
               final candData = change.doc.data() as Map<String, dynamic>? ?? {};
-              webrtcService.addCandidate(SignalingMessage(
+              unawaited(webrtcService.addCandidate(SignalingMessage(
                 type: 'candidate',
                 roomId: callId,
                 senderId: 'baby',
                 payload: candData,
-              ));
+              )));
             }
           }
         });
