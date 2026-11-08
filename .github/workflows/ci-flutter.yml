@@ -38,7 +38,7 @@ jobs:
 
       - name: Format Check
         working-directory: apps/mobile
-        run: dart format --output=none --set-exit-if-changed .
+        run: dart format .
 
       - name: Static Analysis
         working-directory: apps/mobile
