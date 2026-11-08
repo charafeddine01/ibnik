@@ -61,11 +61,11 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 --decode > app/ibnik-upload-key.jks
             cat <<EOF > key.properties
-          storePassword=${KEYSTORE_PASSWORD:-IbnikKeyStore2026Secure!}
-          keyPassword=${KEY_PASSWORD:-IbnikKeyStore2026Secure!}
-          keyAlias=${KEY_ALIAS:-ibnik}
-          storeFile=ibnik-upload-key.jks
-          EOF
+storePassword=${KEYSTORE_PASSWORD:-IbnikProduction2026Key}
+keyPassword=${KEY_PASSWORD:-IbnikProduction2026Key}
+keyAlias=${KEY_ALIAS:-ibnik}
+storeFile=ibnik-upload-key.jks
+EOF
             echo "Keystore and key.properties created."
           else
             echo "No keystore secret found, proceeding with default unsigned/debug configuration."
