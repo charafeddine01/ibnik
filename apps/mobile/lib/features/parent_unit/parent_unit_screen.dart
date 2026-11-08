@@ -4,17 +4,22 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../core/services/webrtc_service.dart';
 import '../../core/services/lullaby_service.dart';
 import '../../core/services/local_p2p_client.dart';
+import '../../core/services/firestore_signaling_service.dart';
 import 'widgets/decibel_meter.dart';
 import '../lullaby/lullaby_sheet.dart';
 
 class ParentUnitScreen extends StatefulWidget {
   final String roomId;
+  final String? deviceName;
+  final bool isCloudCall;
   final String? targetIp;
   final int targetPort;
 
   const ParentUnitScreen({
     super.key,
     required this.roomId,
+    this.deviceName,
+    this.isCloudCall = false,
     this.targetIp,
     this.targetPort = 8888,
   });
@@ -26,6 +31,7 @@ class ParentUnitScreen extends StatefulWidget {
 class _ParentUnitScreenState extends State<ParentUnitScreen> {
   final WebRTCService _webrtcService = WebRTCService();
   final LocalP2PClient _p2pClient = LocalP2PClient();
+  final FirestoreSignalingService _firestoreSignaling = FirestoreSignalingService();
 
   bool _isConnected = false;
   bool _isTalking = false;
@@ -92,56 +98,99 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
       }
     };
 
-    // 3. Setup Local P2P Client
-    _p2pClient.onDiscoveryProgress = (status) {
-      if (mounted) {
-        setState(() => _statusText = status);
-      }
-    };
+    if (widget.isCloudCall) {
+      // 3a. Cloud WebRTC Call over Firestore
+      unawaited(_connectCloud());
+    } else {
+      // 3b. Setup Local P2P Client (Direct LAN / Wi-Fi)
+      _p2pClient.onDiscoveryProgress = (status) {
+        if (mounted) {
+          setState(() => _statusText = status);
+        }
+      };
 
-    _p2pClient.onConnected = () {
-      if (mounted) {
-        setState(() => _statusText = 'Connected to Baby Unit socket');
-      }
-    };
+      _p2pClient.onConnected = () {
+        if (mounted) {
+          setState(() => _statusText = 'Connected to Baby Unit socket');
+        }
+      };
 
-    _p2pClient.onMessageReceived = (msg) async {
-      debugPrint('ParentUnit: Received signaling message: ${msg.type}');
-      if (msg.type == 'offer') {
-        await _webrtcService.createPeerConnectionInstance(
-          roomId: widget.roomId,
-          myPeerId: 'parent',
-          targetPeerId: 'baby',
-          isBabyUnit: false,
-        );
+      _p2pClient.onMessageReceived = (msg) async {
+        debugPrint('ParentUnit: Received signaling message: ${msg.type}');
+        if (msg.type == 'offer') {
+          await _webrtcService.createPeerConnectionInstance(
+            roomId: widget.roomId,
+            myPeerId: 'parent',
+            targetPeerId: 'baby',
+            isBabyUnit: false,
+          );
 
-        _webrtcService.onSignalingMessage = (outMsg) {
-          _p2pClient.sendMessage(outMsg);
-        };
+          _webrtcService.onSignalingMessage = (outMsg) {
+            _p2pClient.sendMessage(outMsg);
+          };
 
-        await _webrtcService.handleOfferAndSendAnswer(
-          offerMsg: msg,
-          myPeerId: 'parent',
-        );
-      } else if (msg.type == 'candidate') {
-        await _webrtcService.addCandidate(msg);
-      }
-    };
+          await _webrtcService.handleOfferAndSendAnswer(
+            offerMsg: msg,
+            myPeerId: 'parent',
+          );
+        } else if (msg.type == 'candidate') {
+          await _webrtcService.addCandidate(msg);
+        }
+      };
 
-    _p2pClient.onDisconnected = () {
+      _p2pClient.onDisconnected = () {
+        if (mounted) {
+          setState(() {
+            _isConnected = false;
+            _statusText = 'Disconnected from Baby Unit';
+          });
+        }
+      };
+
+      unawaited(_connectLocal());
+    }
+  }
+
+  Future<void> _connectCloud() async {
+    setState(() => _statusText = 'Connecting to ${widget.deviceName ?? "Baby Unit"} over cloud WebRTC...');
+    try {
+      await _firestoreSignaling.callBabyUnit(
+        callId: widget.roomId,
+        webrtcService: _webrtcService,
+        onStatusChanged: (status) {
+          if (mounted) setState(() => _statusText = status);
+        },
+        onConnected: () {
+          debugPrint('ParentUnit: Cloud WebRTC stream fully connected!');
+          if (mounted) {
+            setState(() {
+              _isConnected = true;
+              _statusText = 'Connected';
+            });
+          }
+        },
+        onDisconnected: () {
+          debugPrint('ParentUnit: Cloud WebRTC stream disconnected');
+          if (mounted) {
+            setState(() {
+              _isConnected = false;
+              _statusText = 'Connection lost. Reconnecting...';
+            });
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('ParentUnit: Cloud connection error: $e');
       if (mounted) {
         setState(() {
           _isConnected = false;
-          _statusText = 'Disconnected from Baby Unit';
+          _statusText = 'Failed to connect. Tap retry below.';
         });
       }
-    };
-
-    // 4. Initiate connection
-    unawaited(_connect());
+    }
   }
 
-  Future<void> _connect() async {
+  Future<void> _connectLocal() async {
     if (widget.targetIp != null && widget.targetIp!.isNotEmpty) {
       setState(() => _statusText = 'Connecting to Baby Unit at ${widget.targetIp}:${widget.targetPort}...');
       final success = await _p2pClient.connectDirect(
@@ -155,6 +204,14 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
       }
     } else {
       await _p2pClient.discoverAndConnect(roomId: widget.roomId, port: widget.targetPort);
+    }
+  }
+
+  void _onRetry() {
+    if (widget.isCloudCall) {
+      unawaited(_connectCloud());
+    } else {
+      unawaited(_connectLocal());
     }
   }
 
@@ -208,7 +265,12 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
 
   @override
   void dispose() {
-    unawaited(_p2pClient.disconnect());
+    if (widget.isCloudCall) {
+      unawaited(_firestoreSignaling.endCall(widget.roomId));
+      unawaited(_firestoreSignaling.dispose());
+    } else {
+      unawaited(_p2pClient.disconnect());
+    }
     unawaited(_webrtcService.dispose());
     super.dispose();
   }
@@ -248,10 +310,12 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
                             style: const TextStyle(color: Colors.white, fontSize: 16),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            'Ensure both phones are on the same Wi-Fi network.',
+                          Text(
+                            widget.isCloudCall
+                                ? 'Streaming encrypted peer-to-peer over WebRTC.'
+                                : 'Ensure both phones are on the same Wi-Fi network.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.white54, fontSize: 13),
+                            style: const TextStyle(color: Colors.white54, fontSize: 13),
                           ),
                           const SizedBox(height: 24),
                           ElevatedButton.icon(
@@ -261,7 +325,7 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
                             ),
                             icon: const Icon(Icons.refresh, color: Colors.white),
                             label: const Text('Retry Connection', style: TextStyle(color: Colors.white)),
-                            onPressed: _connect,
+                            onPressed: _onRetry,
                           ),
                         ],
                       ),
@@ -292,13 +356,15 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          _isConnected ? Icons.wifi : Icons.wifi_off,
+                          _isConnected ? Icons.cloud_done : Icons.cloud_outlined,
                           color: Colors.white,
                           size: 16,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          _isConnected ? 'Connected • Local P2P' : 'Room: ${widget.roomId}',
+                          _isConnected
+                              ? (widget.isCloudCall ? 'Live Cloud HD • ${widget.deviceName ?? "Baby"}' : 'Connected • Local P2P')
+                              : (widget.isCloudCall ? (widget.deviceName ?? 'Connecting...') : 'Room: ${widget.roomId}'),
                           style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                         ),
                       ],

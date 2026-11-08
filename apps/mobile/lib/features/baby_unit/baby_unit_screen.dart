@@ -8,11 +8,24 @@ import '../../core/services/battery_service.dart';
 import '../../core/services/lullaby_service.dart';
 import '../../core/services/local_discovery_service.dart';
 import '../../core/services/local_p2p_server.dart';
+import '../../core/services/device_registry_service.dart';
+import '../../core/services/firestore_signaling_service.dart';
 
 class BabyUnitScreen extends StatefulWidget {
   final String roomId;
+  final String? userId;
+  final String? deviceId;
+  final String? deviceName;
+  final bool isCloudCall;
 
-  const BabyUnitScreen({super.key, required this.roomId});
+  const BabyUnitScreen({
+    super.key,
+    required this.roomId,
+    this.userId,
+    this.deviceId,
+    this.deviceName,
+    this.isCloudCall = false,
+  });
 
   @override
   State<BabyUnitScreen> createState() => _BabyUnitScreenState();
@@ -24,6 +37,8 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
   final LullabyService _lullabyService = LullabyService();
   final LocalDiscoveryService _discoveryService = LocalDiscoveryService();
   final LocalP2PServer _p2pServer = LocalP2PServer();
+  final DeviceRegistryService _registryService = DeviceRegistryService();
+  final FirestoreSignalingService _cloudSignaling = FirestoreSignalingService();
 
   bool _isTorchOn = false;
   bool _isDimMode = false;
@@ -37,7 +52,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
   @override
   void initState() {
     super.initState();
-    WakelockPlus.enable();
+    unawaited(WakelockPlus.enable());
     _initServices();
   }
 
@@ -49,21 +64,50 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
     await _webrtcService.openUserMedia(isBabyUnit: true);
     if (mounted) setState(() {});
 
-    // 2. Start embedded Local P2P Server
+    // 2. Cloud Signaling & Device Registry Mode
+    if (widget.userId != null && widget.deviceId != null) {
+      await _registryService.registerBabyDevice(
+        userId: widget.userId!,
+        deviceId: widget.deviceId!,
+        deviceName: widget.deviceName ?? 'Nursery Camera',
+        batteryLevel: _batteryLevel,
+        isCharging: _isCharging,
+      );
+
+      _registryService.startHeartbeat(
+        userId: widget.userId!,
+        deviceId: widget.deviceId!,
+        getBatteryLevel: () => _batteryLevel,
+        getIsCharging: () => _isCharging,
+      );
+
+      await _cloudSignaling.listenForParentCalls(
+        callId: widget.roomId,
+        webrtcService: _webrtcService,
+        onConnected: () {
+          debugPrint('BabyUnit: Cloud WebRTC call connected with Parent Unit!');
+          if (mounted) setState(() => _isParentConnected = true);
+        },
+        onDisconnected: () {
+          debugPrint('BabyUnit: Cloud WebRTC call disconnected');
+          if (mounted) setState(() => _isParentConnected = false);
+        },
+      );
+    }
+
+    // 3. Embedded Local P2P Server Backup
     final serverStarted = await _p2pServer.start(roomId: widget.roomId);
     if (serverStarted) {
       _serverAddress = '${_p2pServer.localIp}:${_p2pServer.port}';
       if (mounted) setState(() {});
 
-      // 3. Start local mDNS discovery advertisement
       await _discoveryService.startAdvertising(
         roomId: widget.roomId,
         port: _p2pServer.port,
       );
 
-      // Handle Parent Unit connection via WebSocket
       _p2pServer.onClientConnected = () async {
-        debugPrint('BabyUnit: Parent connected! Initializing WebRTC Offer...');
+        debugPrint('BabyUnit: Local Parent connected! Initializing WebRTC Offer...');
         await _webrtcService.createPeerConnectionInstance(
           roomId: widget.roomId,
           myPeerId: 'baby',
@@ -85,7 +129,6 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
       };
 
       _p2pServer.onMessageReceived = (msg) async {
-        debugPrint('BabyUnit: Received signaling message: ${msg.type}');
         if (msg.type == 'answer') {
           await _webrtcService.handleAnswer(msg);
         } else if (msg.type == 'candidate') {
@@ -94,7 +137,6 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
       };
 
       _p2pServer.onClientDisconnected = () {
-        debugPrint('BabyUnit: Parent disconnected');
         if (mounted) setState(() => _isParentConnected = false);
       };
     }
@@ -115,7 +157,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
       });
     };
 
-    // 5. Handle remote commands from parent unit
+    // 5. Remote controls callback
     _webrtcService.onTelemetryReceived = (data) {
       final cmd = data['command'] as String?;
       if (cmd == 'toggle_torch') {
@@ -132,16 +174,16 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
     };
 
     _webrtcService.onConnectionConnected = () {
-      debugPrint('BabyUnit: WebRTC P2P stream fully connected!');
+      debugPrint('BabyUnit: WebRTC stream connected!');
       if (mounted) setState(() => _isParentConnected = true);
     };
 
     _webrtcService.onConnectionDisconnected = () {
-      debugPrint('BabyUnit: WebRTC P2P stream disconnected');
+      debugPrint('BabyUnit: WebRTC stream disconnected');
       if (mounted) setState(() => _isParentConnected = false);
     };
 
-    // Simulate ambient microphone level polling
+    // 6. Audio level polling
     _dbSimulatorTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (!mounted) return;
       final simulated = 32.0 + (DateTime.now().millisecond % 15);
@@ -176,6 +218,12 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
     _batteryService.dispose();
     unawaited(_discoveryService.stop());
     unawaited(_p2pServer.stop());
+    if (widget.userId != null && widget.deviceId != null) {
+      unawaited(_registryService.setDeviceOffline(userId: widget.userId!, deviceId: widget.deviceId!));
+      unawaited(_cloudSignaling.endCall(widget.roomId));
+    }
+    _registryService.dispose();
+    _cloudSignaling.dispose();
     _lullabyService.dispose();
     unawaited(_webrtcService.dispose());
     unawaited(WakelockPlus.disable());
@@ -232,7 +280,6 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Back Button & Status
                   Row(
                     children: [
                       IconButton(
@@ -244,7 +291,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _isParentConnected ? Colors.green.withOpacity(0.8) : Colors.black54,
+                          color: _isParentConnected ? Colors.green.withOpacity(0.85) : Colors.black54,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -257,8 +304,8 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
                             const SizedBox(width: 6),
                             Text(
                               _isParentConnected
-                                  ? 'Parent Connected'
-                                  : 'PIN: ${widget.roomId} • ${_serverAddress ?? "Starting..."}',
+                                  ? 'Parent Connected • Live'
+                                  : (widget.deviceName != null ? '${widget.deviceName} (Ready)' : 'Ready • ${_serverAddress ?? "Local"}'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -298,7 +345,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
             ),
           ),
 
-          // 3. Quick Action Controls on Baby Device
+          // 3. Quick Action Controls
           Positioned(
             bottom: 24,
             left: 20,

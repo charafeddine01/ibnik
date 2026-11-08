@@ -173,6 +173,35 @@ class WebRTCService {
     }
   }
 
+  Future<RTCSessionDescription> createAndSendOfferRaw() async {
+    final RTCSessionDescription offer = await _peerConnection!.createOffer({
+      'offerToReceiveAudio': 1,
+      'offerToReceiveVideo': 0,
+    });
+    await _peerConnection!.setLocalDescription(offer);
+    return offer;
+  }
+
+  Future<RTCSessionDescription> handleOfferAndReturnAnswer({
+    required SignalingMessage offerMsg,
+    required String myPeerId,
+  }) async {
+    final payload = offerMsg.payload!;
+    final sdp = payload['sdp'] as String;
+    final type = payload['type'] as String;
+
+    await _peerConnection!.setRemoteDescription(RTCSessionDescription(sdp, type));
+    _hasRemoteDescription = true;
+    await _drainCandidateQueue();
+
+    final RTCSessionDescription answer = await _peerConnection!.createAnswer({
+      'offerToReceiveAudio': 1,
+      'offerToReceiveVideo': 1,
+    });
+    await _peerConnection!.setLocalDescription(answer);
+    return answer;
+  }
+
   Future<void> createAndSendOffer({
     required String roomId,
     required String myPeerId,
