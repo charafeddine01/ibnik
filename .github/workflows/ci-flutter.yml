@@ -53,3 +53,4 @@ jobs:
         with:
           name: flutter-coverage
           path: apps/mobile/coverage/lcov.info
+          if-no-files-found: ignore
