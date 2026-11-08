@@ -1,8 +1,8 @@
 # 🍼 BabyMonitor — Enterprise DevOps & Flutter WebRTC Baby Monitor
 
-[![Flutter CI](https://github.com/charafeddine/baby_monitor/actions/workflows/ci-flutter.yml/badge.svg)](https://github.com/charafeddine/baby_monitor/actions/workflows/ci-flutter.yml)
-[![Backend CI/CD & Security](https://github.com/charafeddine/baby_monitor/actions/workflows/ci-cd-backend.yml/badge.svg)](https://github.com/charafeddine/baby_monitor/actions/workflows/ci-cd-backend.yml)
-[![Docker Multi-Arch](https://img.shields.io/badge/docker-multi--arch%20(amd64%2Farm64)-blue.svg?logo=docker)](https://github.com/charafeddine/baby_monitor/pkgs/container/baby-monitor-signaling)
+[![Flutter CI](https://github.com/charafeddine01/ibnik/actions/workflows/ci-flutter.yml/badge.svg)](https://github.com/charafeddine01/ibnik/actions/workflows/ci-flutter.yml)
+[![Backend CI/CD & Security](https://github.com/charafeddine01/ibnik/actions/workflows/ci-cd-backend.yml/badge.svg)](https://github.com/charafeddine01/ibnik/actions/workflows/ci-cd-backend.yml)
+[![Docker Multi-Arch](https://img.shields.io/badge/docker-multi--arch%20(amd64%2Farm64)-blue.svg?logo=docker)](https://github.com/charafeddine01/ibnik/pkgs/container/baby-monitor-signaling)
 [![Terraform](https://img.shields.io/badge/IaC-Terraform%20(OCI%20%26%20AWS)-7B42BC.svg?logo=terraform)](terraform/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![End-to-End Encrypted](https://img.shields.io/badge/Security-DTLS--SRTP%20E2EE-green.svg)](docs/security.md)
