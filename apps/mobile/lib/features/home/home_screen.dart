@@ -75,7 +75,7 @@ class HomeScreen extends StatelessWidget {
                 color: const Color(0xFF4F46E5),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(
+                    MaterialPageRoute<void>(
                       builder: (_) => const PairingScreen(role: PeerRole.baby),
                     ),
                   );
@@ -93,7 +93,7 @@ class HomeScreen extends StatelessWidget {
                 color: const Color(0xFF06B6D4),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(
+                    MaterialPageRoute<void>(
                       builder: (_) => const PairingScreen(role: PeerRole.parent),
                     ),
                   );

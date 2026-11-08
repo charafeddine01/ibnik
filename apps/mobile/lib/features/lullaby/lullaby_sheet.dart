@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/lullaby_service.dart';
 
 class LullabySheet extends StatefulWidget {
-  final Function(LullabyTrack track, int durationMinutes) onPlayTrack;
+  final void Function(LullabyTrack track, int durationMinutes) onPlayTrack;
   final VoidCallback onStop;
   final bool isPlaying;
   final LullabyTrack? activeTrack;

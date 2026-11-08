@@ -57,7 +57,7 @@ class WebRTCService {
                 'minFrameRate': '30',
               },
               'facingMode': 'environment', // back camera by default
-              'optional': [],
+              'optional': <Map<String, dynamic>>[],
             }
           : false, // Parent unit only sends audio when talking back
     };

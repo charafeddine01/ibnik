@@ -8,7 +8,7 @@ class LocalDiscoveryService {
   BonsoirBroadcast? _broadcast;
   BonsoirDiscovery? _discovery;
 
-  Function(String roomId, String ip, int port)? onServiceDiscovered;
+  void Function(String roomId, String ip, int port)? onServiceDiscovered;
 
   Future<void> startAdvertising({required String roomId, required int port}) async {
     try {
@@ -38,7 +38,10 @@ class LocalDiscoveryService {
           final service = event.service;
           if (service != null && service.attributes.containsKey('room_id')) {
             final roomId = service.attributes['room_id']!;
-            final ip = service.host ?? '';
+            String ip = '';
+            if (service is ResolvedBonsoirService) {
+              ip = service.host ?? '';
+            }
             final port = service.port;
             onServiceDiscovered?.call(roomId, ip, port);
           }

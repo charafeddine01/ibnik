@@ -44,9 +44,15 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
     _webrtcService.onTelemetryReceived = (data) {
       if (data['type'] == 'telemetry' || data['type'] == 'audio_level') {
         setState(() {
-          if (data.containsKey('db')) _babyDb = (data['db'] as num).toDouble();
-          if (data.containsKey('battery_level')) _babyBattery = data['battery_level'] as int;
-          if (data.containsKey('is_charging')) _babyIsCharging = data['is_charging'] as bool;
+          if (data.containsKey('db')) {
+            _babyDb = (data['db'] as num).toDouble();
+          }
+          if (data.containsKey('battery_level')) {
+            _babyBattery = data['battery_level'] as int;
+          }
+          if (data.containsKey('is_charging')) {
+            _babyIsCharging = data['is_charging'] as bool;
+          }
         });
       } else if (data['type'] == 'torch_state') {
         setState(() {
@@ -85,7 +91,7 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
   }
 
   void _showLullabySheet() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

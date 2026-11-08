@@ -20,7 +20,7 @@ class BatteryService {
   StreamSubscription<BatteryState>? _stateSubscription;
   Timer? _pollingTimer;
 
-  Function(BatteryTelemetry telemetry)? onTelemetryChanged;
+  void Function(BatteryTelemetry telemetry)? onTelemetryChanged;
 
   void startMonitoring() {
     _sendTelemetry();

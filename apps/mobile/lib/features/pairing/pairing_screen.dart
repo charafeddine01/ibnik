@@ -36,7 +36,7 @@ class _PairingScreenState extends State<PairingScreen> {
   void _connectAsParent(String targetRoomId) {
     if (targetRoomId.trim().isEmpty) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => ParentUnitScreen(roomId: targetRoomId.trim()),
       ),
     );
@@ -139,7 +139,7 @@ class _PairingScreenState extends State<PairingScreen> {
             ),
             onPressed: () {
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
+                MaterialPageRoute<void>(
                   builder: (_) => BabyUnitScreen(roomId: _roomId),
                 ),
               );
