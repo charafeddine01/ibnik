@@ -31,7 +31,7 @@ class HomeScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'BabyMonitor',
+                        'Ibnik',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 24,

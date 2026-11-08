@@ -3,7 +3,7 @@ import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/foundation.dart';
 
 class LocalDiscoveryService {
-  static const String serviceType = '_babymonitor._tcp';
+  static const String serviceType = '_ibnik._tcp';
 
   BonsoirBroadcast? _broadcast;
   BonsoirDiscovery? _discovery;
@@ -13,7 +13,7 @@ class LocalDiscoveryService {
   Future<void> startAdvertising({required String roomId, required int port}) async {
     try {
       final BonsoirService service = BonsoirService(
-        name: 'BabyMonitor-$roomId',
+        name: 'Ibnik-$roomId',
         type: serviceType,
         port: port,
         attributes: {'room_id': roomId},

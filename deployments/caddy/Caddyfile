@@ -4,7 +4,7 @@ signal.charafeddine.xyz {
     reverse_proxy signaling:8080
 }
 
-metrics.baby.charafeddine.xyz {
+metrics.ibnik.charafeddine.xyz {
     # Basic auth protection for Grafana / metrics dashboard
     basicauth {
         admin $2a$14$ZAKk.82Bw4Uq456f... # Hash for your admin password

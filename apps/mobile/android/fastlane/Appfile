@@ -1,5 +1,5 @@
 # Fastlane Appfile for Android
 # Package Name matching Google Play Console application identifier
 
-package_name("com.charafeddine.babymonitor")
+package_name("com.charafeddine.ibnik")
 json_key_file("play-store-key.json")

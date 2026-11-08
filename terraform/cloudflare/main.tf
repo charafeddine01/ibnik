@@ -34,14 +34,14 @@ provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
-# 1. Landing Page & Privacy Policy Subdomain: baby.charafeddine.xyz
+# 1. Landing Page & Privacy Policy Subdomain: ibnik.charafeddine.xyz
 resource "cloudflare_record" "landing" {
   zone_id = var.zone_id
-  name    = "baby"
+  name    = "ibnik"
   content = var.shared_hosting_ip != "" ? var.shared_hosting_ip : var.vps_public_ip
   type    = "A"
   proxied = true # Cloudflare CDN & DDoS protection enabled for website
-  comment = "Baby Monitor marketing landing page and privacy policy"
+  comment = "Ibnik baby monitor marketing landing page and privacy policy"
 }
 
 # 2. WebSocket Signaling Subdomain: signal.charafeddine.xyz
@@ -51,7 +51,7 @@ resource "cloudflare_record" "signaling" {
   content = var.vps_public_ip
   type    = "A"
   proxied = false # Direct connection for low-latency WebSockets
-  comment = "Baby Monitor WebRTC signaling endpoint"
+  comment = "Ibnik WebRTC signaling endpoint"
 }
 
 # 3. Coturn STUN/TURN Subdomain: turn.charafeddine.xyz
@@ -64,10 +64,10 @@ resource "cloudflare_record" "turn" {
   comment = "Coturn STUN/TURN server for WebRTC relay"
 }
 
-# 4. Metrics & Monitoring Subdomain: metrics.baby.charafeddine.xyz
+# 4. Metrics & Monitoring Subdomain: metrics.ibnik.charafeddine.xyz
 resource "cloudflare_record" "metrics" {
   zone_id = var.zone_id
-  name    = "metrics.baby"
+  name    = "metrics.ibnik"
   content = var.vps_public_ip
   type    = "A"
   proxied = true # Proxied with SSL

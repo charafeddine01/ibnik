@@ -1,4 +1,4 @@
-# 🍼 BabyMonitor — Enterprise DevOps & Flutter WebRTC Baby Monitor
+# 🍼 Ibnik — Enterprise DevOps & Flutter WebRTC Baby Monitor
 
 [![Flutter CI](https://github.com/charafeddine01/ibnik/actions/workflows/ci-flutter.yml/badge.svg)](https://github.com/charafeddine01/ibnik/actions/workflows/ci-flutter.yml)
 [![Backend CI/CD & Security](https://github.com/charafeddine01/ibnik/actions/workflows/ci-cd-backend.yml/badge.svg)](https://github.com/charafeddine01/ibnik/actions/workflows/ci-cd-backend.yml)
@@ -36,7 +36,7 @@ flowchart TD
         subgraph Subdomains ["Subdomain Routing (*.charafeddine.xyz)"]
             SigDNS["signal.charafeddine.xyz"]
             TurnDNS["turn.charafeddine.xyz"]
-            MetricsDNS["metrics.baby.charafeddine.xyz"]
+            MetricsDNS["metrics.ibnik.charafeddine.xyz"]
         end
         CaddyProxy["Caddy (Automated Let's Encrypt TLS)"]
         Signaling["Go WebSocket Signaling Daemon"]
@@ -64,7 +64,7 @@ flowchart TD
 
 ## 🌟 Feature Matrix: Paid Commercial Features (100% Free)
 
-| Feature | BabyMonitor (This App) | Typical Paid Apps ($40-60/yr) |
+| Feature | Ibnik (This App) | Typical Paid Apps ($40-60/yr) |
 | :--- | :---: | :---: |
 | **Subscription / Ads** | **100% Free / Zero Ads** | $4.99/mo or $49/yr + Ads |
 | **Ultra-Low Latency Video** | **Sub-second (<200ms) WebRTC** | 2 - 5s Latency (HLS/RTMP) |
@@ -87,7 +87,7 @@ This repository demonstrates complete production DevOps automation:
 ### 1. Infrastructure as Code (IaC) with Terraform
 * **Oracle Cloud Always Free (Primary)**: Automatically provisions an Ampere A1 (ARM64) 4 OCPU, 24GB RAM instance, Virtual Cloud Network (VCN), and WebRTC UDP/TCP security lists, taking advantage of **10 TB/month free outbound data transfer**.
 * **AWS Free Tier (Alternative)**: EC2, VPC, Internet Gateway, and Security Groups configuration.
-* **Cloudflare DNS Management**: Automated provisioning of `signal.charafeddine.xyz`, `turn.charafeddine.xyz`, and `baby.charafeddine.xyz`.
+* **Cloudflare DNS Management**: Automated provisioning of `signal.charafeddine.xyz`, `turn.charafeddine.xyz`, and `ibnik.charafeddine.xyz`.
 
 ### 2. Multi-Stage Distroless Docker Image
 * Minimal multi-stage build (`golang:1.22-alpine` -> `gcr.io/distroless/static-debian12:nonroot`).

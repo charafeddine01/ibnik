@@ -4,16 +4,16 @@ import 'features/home/home_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: BabyMonitorApp()));
+  runApp(const ProviderScope(child: IbnikApp()));
 }
 
-class BabyMonitorApp extends StatelessWidget {
-  const BabyMonitorApp({super.key});
+class IbnikApp extends StatelessWidget {
+  const IbnikApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BabyMonitor',
+      title: 'Ibnik',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
