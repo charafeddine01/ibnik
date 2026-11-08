@@ -22,11 +22,14 @@ class WebRTCService {
   VoidCallback? onConnectionDisconnected;
 
   bool _isDisposed = false;
+  bool _hasRemoteDescription = false;
+  final List<RTCIceCandidate> _candidateQueue = [];
 
   final Map<String, dynamic> _iceServers = {
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
       {'urls': 'stun:stun1.l.google.com:19302'},
+      {'urls': 'stun:stun2.l.google.com:19302'},
     ]
   };
 
@@ -56,10 +59,10 @@ class WebRTCService {
                 'minHeight': '720',
                 'minFrameRate': '30',
               },
-              'facingMode': 'environment', // back camera by default
+              'facingMode': 'environment',
               'optional': <Map<String, dynamic>>[],
             }
-          : false, // Parent unit only sends audio when talking back
+          : false,
     };
 
     localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
@@ -75,6 +78,9 @@ class WebRTCService {
     required String targetPeerId,
     required bool isBabyUnit,
   }) async {
+    _hasRemoteDescription = false;
+    _candidateQueue.clear();
+
     final Map<String, dynamic> configuration = {
       ..._iceServers,
       'sdpSemantics': 'unified-plan',
@@ -110,7 +116,19 @@ class WebRTCService {
       }
     };
 
+    _peerConnection!.onIceConnectionState = (RTCIceConnectionState state) {
+      debugPrint('WebRTC ICE Connection state: $state');
+      if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        onConnectionConnected?.call();
+      } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+        onConnectionDisconnected?.call();
+      }
+    };
+
     _peerConnection!.onTrack = (RTCTrackEvent event) {
+      debugPrint('WebRTC onTrack received: ${event.track.kind}');
       if (event.streams.isNotEmpty) {
         remoteStream = event.streams[0];
         remoteRenderer.srcObject = remoteStream;
@@ -126,7 +144,7 @@ class WebRTCService {
 
     if (isBabyUnit) {
       // Create DataChannel on baby unit
-      RTCDataChannelInit dcInit = RTCDataChannelInit()..ordered = true;
+      final RTCDataChannelInit dcInit = RTCDataChannelInit()..ordered = true;
       _dataChannel = await _peerConnection!.createDataChannel('telemetry', dcInit);
       _setupDataChannel(_dataChannel!);
     } else {
@@ -161,9 +179,9 @@ class WebRTCService {
     required String targetPeerId,
   }) async {
     if (_peerConnection == null) return;
-    RTCSessionDescription offer = await _peerConnection!.createOffer({
+    final RTCSessionDescription offer = await _peerConnection!.createOffer({
       'offerToReceiveAudio': 1,
-      'offerToReceiveVideo': 0, // Baby receives parent voice
+      'offerToReceiveVideo': 0, // Baby receives parent voice only
     });
     await _peerConnection!.setLocalDescription(offer);
 
@@ -186,10 +204,12 @@ class WebRTCService {
     final type = payload['type'] as String;
 
     await _peerConnection!.setRemoteDescription(RTCSessionDescription(sdp, type));
+    _hasRemoteDescription = true;
+    await _drainCandidateQueue();
 
-    RTCSessionDescription answer = await _peerConnection!.createAnswer({
+    final RTCSessionDescription answer = await _peerConnection!.createAnswer({
       'offerToReceiveAudio': 1,
-      'offerToReceiveVideo': 1,
+      'offerToReceiveVideo': 1, // Parent receives both audio and video
     });
     await _peerConnection!.setLocalDescription(answer);
 
@@ -207,20 +227,42 @@ class WebRTCService {
     final payload = answerMsg.payload!;
     final sdp = payload['sdp'] as String;
     final type = payload['type'] as String;
+
     await _peerConnection!.setRemoteDescription(RTCSessionDescription(sdp, type));
+    _hasRemoteDescription = true;
+    await _drainCandidateQueue();
   }
 
   Future<void> addCandidate(SignalingMessage candidateMsg) async {
-    if (_peerConnection == null) return;
-    final payload = candidateMsg.payload!;
-    final candidate = payload['candidate'] as String;
+    final payload = candidateMsg.payload;
+    if (payload == null) return;
+    final candidateStr = payload['candidate'] as String?;
+    if (candidateStr == null) return;
     final sdpMid = payload['sdpMid'] as String?;
     final sdpMLineIndex = payload['sdpMLineIndex'] as int?;
 
-    await _peerConnection!.addCandidate(RTCIceCandidate(candidate, sdpMid, sdpMLineIndex));
+    final candidate = RTCIceCandidate(candidateStr, sdpMid, sdpMLineIndex);
+
+    if (_peerConnection != null && _hasRemoteDescription) {
+      await _peerConnection!.addCandidate(candidate);
+    } else {
+      _candidateQueue.add(candidate);
+    }
   }
 
-  // Two-way talkback mute toggle
+  Future<void> _drainCandidateQueue() async {
+    if (_peerConnection != null && _hasRemoteDescription) {
+      for (final candidate in _candidateQueue) {
+        try {
+          await _peerConnection!.addCandidate(candidate);
+        } catch (e) {
+          debugPrint('Error draining candidate: $e');
+        }
+      }
+      _candidateQueue.clear();
+    }
+  }
+
   void setMicrophoneMute(bool muted) {
     if (localStream != null) {
       final audioTracks = localStream!.getAudioTracks();

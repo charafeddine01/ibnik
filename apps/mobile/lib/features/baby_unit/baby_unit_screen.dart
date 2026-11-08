@@ -7,6 +7,7 @@ import '../../core/services/webrtc_service.dart';
 import '../../core/services/battery_service.dart';
 import '../../core/services/lullaby_service.dart';
 import '../../core/services/local_discovery_service.dart';
+import '../../core/services/local_p2p_server.dart';
 
 class BabyUnitScreen extends StatefulWidget {
   final String roomId;
@@ -22,6 +23,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
   final BatteryService _batteryService = BatteryService();
   final LullabyService _lullabyService = LullabyService();
   final LocalDiscoveryService _discoveryService = LocalDiscoveryService();
+  final LocalP2PServer _p2pServer = LocalP2PServer();
 
   bool _isTorchOn = false;
   bool _isDimMode = false;
@@ -30,6 +32,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
   int _batteryLevel = 100;
   bool _isCharging = false;
   bool _isParentConnected = false;
+  String? _serverAddress;
 
   @override
   void initState() {
@@ -44,18 +47,66 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
 
     // 1. Open nursery camera and microphone
     await _webrtcService.openUserMedia(isBabyUnit: true);
+    if (mounted) setState(() {});
 
-    // 2. Start local mDNS discovery advertisement
-    await _discoveryService.startAdvertising(roomId: widget.roomId, port: 8080);
+    // 2. Start embedded Local P2P Server
+    final serverStarted = await _p2pServer.start(roomId: widget.roomId);
+    if (serverStarted) {
+      _serverAddress = '${_p2pServer.localIp}:${_p2pServer.port}';
+      if (mounted) setState(() {});
 
-    // 3. Monitor battery level
+      // 3. Start local mDNS discovery advertisement
+      await _discoveryService.startAdvertising(
+        roomId: widget.roomId,
+        port: _p2pServer.port,
+      );
+
+      // Handle Parent Unit connection via WebSocket
+      _p2pServer.onClientConnected = () async {
+        debugPrint('BabyUnit: Parent connected! Initializing WebRTC Offer...');
+        await _webrtcService.createPeerConnectionInstance(
+          roomId: widget.roomId,
+          myPeerId: 'baby',
+          targetPeerId: 'parent',
+          isBabyUnit: true,
+        );
+
+        _webrtcService.onSignalingMessage = (msg) {
+          _p2pServer.sendMessage(msg);
+        };
+
+        await _webrtcService.createAndSendOffer(
+          roomId: widget.roomId,
+          myPeerId: 'baby',
+          targetPeerId: 'parent',
+        );
+
+        if (mounted) setState(() => _isParentConnected = true);
+      };
+
+      _p2pServer.onMessageReceived = (msg) async {
+        debugPrint('BabyUnit: Received signaling message: ${msg.type}');
+        if (msg.type == 'answer') {
+          await _webrtcService.handleAnswer(msg);
+        } else if (msg.type == 'candidate') {
+          await _webrtcService.addCandidate(msg);
+        }
+      };
+
+      _p2pServer.onClientDisconnected = () {
+        debugPrint('BabyUnit: Parent disconnected');
+        if (mounted) setState(() => _isParentConnected = false);
+      };
+    }
+
+    // 4. Monitor battery level
     _batteryService.startMonitoring();
     _batteryService.onTelemetryChanged = (telemetry) {
+      if (!mounted) return;
       setState(() {
         _batteryLevel = telemetry.batteryLevel;
         _isCharging = telemetry.toMap()['is_charging'] as bool;
       });
-      // Send live battery telemetry over WebRTC DataChannel
       _webrtcService.sendTelemetry({
         'type': 'telemetry',
         'battery_level': _batteryLevel,
@@ -64,7 +115,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
       });
     };
 
-    // 4. Handle remote commands from parent unit
+    // 5. Handle remote commands from parent unit
     _webrtcService.onTelemetryReceived = (data) {
       final cmd = data['command'] as String?;
       if (cmd == 'toggle_torch') {
@@ -81,16 +132,18 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
     };
 
     _webrtcService.onConnectionConnected = () {
-      setState(() => _isParentConnected = true);
+      debugPrint('BabyUnit: WebRTC P2P stream fully connected!');
+      if (mounted) setState(() => _isParentConnected = true);
     };
 
     _webrtcService.onConnectionDisconnected = () {
-      setState(() => _isParentConnected = false);
+      debugPrint('BabyUnit: WebRTC P2P stream disconnected');
+      if (mounted) setState(() => _isParentConnected = false);
     };
 
     // Simulate ambient microphone level polling
     _dbSimulatorTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      // Fluctuate around realistic background nursery levels (30 - 45 dB)
+      if (!mounted) return;
       final simulated = 32.0 + (DateTime.now().millisecond % 15);
       setState(() => _currentDb = simulated);
       _webrtcService.sendTelemetry({
@@ -98,8 +151,6 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
         'db': _currentDb,
       });
     });
-
-    setState(() {});
   }
 
   Future<void> _toggleTorch() async {
@@ -110,45 +161,49 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
         await TorchLight.enableTorch();
       }
       setState(() => _isTorchOn = !_isTorchOn);
-      _webrtcService.sendTelemetry({'type': 'torch_state', 'is_on': _isTorchOn});
-    } catch (_) {}
+      _webrtcService.sendTelemetry({
+        'type': 'torch_state',
+        'is_on': _isTorchOn,
+      });
+    } catch (e) {
+      debugPrint('Failed to toggle torch: $e');
+    }
   }
 
   @override
   void dispose() {
-    WakelockPlus.disable();
     _dbSimulatorTimer?.cancel();
-    _batteryService.stop();
-    _lullabyService.dispose();
+    _batteryService.dispose();
     _discoveryService.stop();
+    _p2pServer.stop();
+    _lullabyService.dispose();
     _webrtcService.dispose();
-    if (_isTorchOn) {
-      TorchLight.disableTorch().catchError((_) {});
-    }
+    WakelockPlus.disable();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isDimMode) {
-      return GestureDetector(
-        onTap: () => setState(() => _isDimMode = false),
-        child: Scaffold(
-          backgroundColor: Colors.black,
-          body: Center(
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: GestureDetector(
+          onTap: () => setState(() => _isDimMode = false),
+          behavior: HitTestBehavior.opaque,
+          child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.nightlight_round, color: Colors.amberAccent, size: 40),
+                const Icon(Icons.nightlight_round, color: Colors.amber, size: 40),
                 const SizedBox(height: 12),
                 Text(
                   'Night Dim Mode Active',
-                  style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 16),
+                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Tap screen to awaken controls',
-                  style: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 12),
+                  'Tap screen to restore preview',
+                  style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12),
                 ),
               ],
             ),
@@ -158,112 +213,125 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0F172A),
       body: Stack(
         children: [
-          // 1. Camera Viewfinder
+          // 1. Camera View
           Positioned.fill(
-            child: _webrtcService.localRenderer.srcObject != null
-                ? RTCVideoView(
-                    _webrtcService.localRenderer,
-                    mirror: false,
-                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                  )
-                : const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
+            child: RTCVideoView(
+              _webrtcService.localRenderer,
+              mirror: false,
+              objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+            ),
           ),
 
-          // 2. Header Info Bar
+          // 2. Top Info Header
           SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Back Button & Status
+                  Row(
+                    children: [
+                      IconButton(
+                        style: IconButton.styleFrom(backgroundColor: Colors.black45),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.of(context).pop(),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.circle,
-                            color: _isParentConnected ? Colors.greenAccent : Colors.orangeAccent,
-                            size: 10,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _isParentConnected ? 'Parent Connected' : 'Waiting for Parent...',
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                          ),
-                        ],
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _isParentConnected ? Colors.green.withOpacity(0.8) : Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _isParentConnected ? Icons.check_circle : Icons.wifi_tethering,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _isParentConnected
+                                  ? 'Parent Connected'
+                                  : 'PIN: ${widget.roomId} • ${_serverAddress ?? "Starting..."}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    ],
+                  ),
+
+                  // Battery Telemetry Pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _isCharging ? Icons.battery_charging_full_rounded : Icons.battery_std_rounded,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$_batteryLevel%',
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _isCharging ? Icons.battery_charging_full : Icons.battery_std,
+                          color: _batteryLevel < 20 ? Colors.redAccent : Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$_batteryLevel%',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
 
-          // 3. Bottom Controls
-          SafeArea(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    FloatingActionButton.small(
-                      heroTag: 'flip_cam',
-                      backgroundColor: Colors.black54,
-                      onPressed: () => _webrtcService.switchCamera(),
-                      child: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
+          // 3. Quick Action Controls on Baby Device
+          Positioned(
+            bottom: 24,
+            left: 20,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.65),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _isTorchOn ? Icons.flash_on : Icons.flash_off,
+                      color: _isTorchOn ? Colors.amber : Colors.white70,
                     ),
-                    FloatingActionButton.small(
-                      heroTag: 'torch',
-                      backgroundColor: _isTorchOn ? Colors.amberAccent : Colors.black54,
-                      onPressed: _toggleTorch,
-                      child: Icon(Icons.flashlight_on_rounded, color: _isTorchOn ? Colors.black : Colors.white),
-                    ),
-                    FloatingActionButton.small(
-                      heroTag: 'dim',
-                      backgroundColor: Colors.black54,
-                      onPressed: () => setState(() => _isDimMode = true),
-                      child: const Icon(Icons.nightlight_round, color: Colors.white),
-                    ),
-                    FloatingActionButton.small(
-                      heroTag: 'exit',
-                      backgroundColor: Colors.redAccent.withOpacity(0.8),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Icon(Icons.close_rounded, color: Colors.white),
-                    ),
-                  ],
-                ),
+                    tooltip: 'Flashlight',
+                    onPressed: _toggleTorch,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.flip_camera_ios, color: Colors.white70),
+                    tooltip: 'Flip Camera',
+                    onPressed: () => _webrtcService.switchCamera(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.dark_mode_outlined, color: Colors.white70),
+                    tooltip: 'Night Dim Mode',
+                    onPressed: () => setState(() => _isDimMode = true),
+                  ),
+                ],
               ),
             ),
           ),
