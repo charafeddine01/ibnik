@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # Automated Reverse Proxy with automatic HTTPS (Let's Encrypt)
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - signaling
+      - grafana
+    networks:
+      - monitor-net
+
+  # WebRTC Signaling Server (Ultra-lightweight Go Distroless)
+  signaling:
+    image: ghcr.io/charafeddine/baby-monitor-signaling:latest
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+      - TURN_HOST=turn.charafeddine.xyz
+      - TURN_SECRET=${TURN_SECRET:-babymonitor-dev-secret-change-in-prod}
+    expose:
+      - "8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+    networks:
+      - monitor-net
+
+  # Coturn STUN / TURN Relay Daemon (High Performance NAT Traversal)
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+
+  # Prometheus Telemetry Collector
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    expose:
+      - "9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - monitor-net
+
+  # Grafana Dashboard UI
+  grafana:
+    image: grafana/grafana:10.4.2
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    expose:
+      - "3000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - monitor-net
+
+volumes:
+  caddy_data:
+  caddy_config:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  monitor-net:
+    driver: bridge

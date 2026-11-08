@@ -1,0 +1,26 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build release Android App Bundle (AAB)"
+  lane :build_aab do
+    sh("cd ../.. && flutter build appbundle --release")
+  end
+
+  desc "Deploy to Google Play Console track (internal, alpha, beta, production)"
+  lane :deploy_play_store do |options|
+    track_name = options[:track] || "internal"
+
+    # 1. Build signed AAB using Flutter
+    build_aab
+
+    # 2. Upload to Google Play
+    upload_to_play_store(
+      track: track_name,
+      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      release_status: "completed"
+    )
+  end
+end

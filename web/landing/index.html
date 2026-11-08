@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BabyMonitor - Next-Gen Smart Baby Monitor</title>
+  <meta name="description" content="Ultra low-latency, end-to-end encrypted baby monitor app for Android and iOS. 100% Free, zero ads.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-light: #EEF2FF;
+      --secondary: #06B6D4;
+      --dark: #0F172A;
+      --text: #334155;
+      --light: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --radius: 16px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; color: var(--text); background: var(--light); line-height: 1.6; }
+    header { background: #fff; border-bottom: 1px solid #E2E8F0; position: sticky; top: 0; z-index: 50; }
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+    nav { display: flex; justify-content: space-between; align-items: center; height: 72px; }
+    .logo { font-size: 22px; font-weight: 800; color: var(--primary); text-decoration: none; display: flex; align-items: center; gap: 8px; }
+    .nav-links a { color: var(--text); text-decoration: none; margin-left: 24px; font-weight: 600; font-size: 14px; }
+    .hero { padding: 90px 0 60px; text-align: center; }
+    .badge { display: inline-block; background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 99px; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 0.5px; }
+    h1 { font-size: 48px; font-weight: 800; color: var(--dark); line-height: 1.2; margin-bottom: 20px; }
+    h1 span { background: linear-gradient(135deg, #4F46E5, #06B6D4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { font-size: 18px; max-width: 680px; margin: 0 auto 36px; color: #64748B; }
+    .cta-group { display: flex; justify-content: center; gap: 16px; margin-bottom: 60px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: 12px; font-weight: 700; text-decoration: none; font-size: 15px; transition: transform 0.2s, box-shadow 0.2s; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4); }
+    .btn-outline { background: #fff; border: 1px solid #CBD5E1; color: var(--dark); }
+    .features { padding: 80px 0; background: #fff; border-top: 1px solid #E2E8F0; }
+    .section-title { text-align: center; margin-bottom: 60px; }
+    .section-title h2 { font-size: 32px; font-weight: 800; color: var(--dark); margin-bottom: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; }
+    .card { background: var(--light); border: 1px solid #E2E8F0; border-radius: var(--radius); padding: 32px; transition: 0.2s; }
+    .card:hover { border-color: var(--primary); transform: translateY(-4px); }
+    .card-icon { width: 48px; height: 48px; background: var(--primary-light); color: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; }
+    .card h3 { font-size: 20px; font-weight: 700; color: var(--dark); margin-bottom: 10px; }
+    .card p { font-size: 14px; color: #64748B; line-height: 1.6; }
+    footer { background: var(--dark); color: #94A3B8; padding: 40px 0; font-size: 14px; }
+    footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+    footer a { color: #CBD5E1; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <nav>
+        <a href="#" class="logo">🍼 BabyMonitor</a>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="https://github.com/charafeddine/baby_monitor" target="_blank">GitHub</a>
+          <a href="privacy-policy.html">Privacy Policy</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <span class="badge">100% Free • Open Source • Zero Ads</span>
+      <h1>Turn Any Device Into a<br><span>Smart Baby Monitor</span></h1>
+      <p class="subtitle">Experience sub-second ultra-low latency HD video & audio, intelligent cry & motion detection, and seamless local Wi-Fi streaming with zero cloud bandwidth costs.</p>
+      <div class="cta-group">
+        <a href="#" class="btn btn-primary">📱 Download on Google Play</a>
+        <a href="https://github.com/charafeddine/baby_monitor" target="_blank" class="btn btn-outline">⭐️ View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="features">
+    <div class="container">
+      <div class="section-title">
+        <h2>Commercial-Grade Features</h2>
+        <p>Built without compromises: everything you find in premium $50/yr apps, completely free.</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="card-icon">⚡️</div>
+          <h3>Sub-Second P2P WebRTC</h3>
+          <p>Instantaneous audio and video streaming. Operates directly over your home Wi-Fi even when internet is offline, with automatic cloud relay fallback.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔒</div>
+          <h3>End-to-End Encryption</h3>
+          <p>Full DTLS-SRTP encryption ensures that only your authorized parent units can decrypt the video stream. Zero surveillance, zero telemetry tracking.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🎙️</div>
+          <h3>Two-Way Talk & Lullabies</h3>
+          <p>Soothe your baby in real-time with push-to-talk audio or remotely play high-quality soothing white noise, rainfall, and lullabies with a sleep timer.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🎧</div>
+          <h3>Background Audio & PiP</h3>
+          <p>Keep listening to baby audio even when your phone is locked or using other apps. Picture-in-picture floating video lets you multitask easily.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔔</div>
+          <h3>Smart Cry & Motion Alerts</h3>
+          <p>Intelligent decibel audio analysis and frame motion detection send instant push notifications to your parent phone the second your baby wakes up.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔋</div>
+          <h3>Battery & Signal Telemetry</h3>
+          <p>Monitor your nursery device's battery percentage, charging state, and Wi-Fi signal in real-time with automatic disconnection alarms.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 BabyMonitor by charafeddine.xyz. Open Source under MIT License.</p>
+      <div>
+        <a href="privacy-policy.html">Privacy Policy</a> &nbsp;|&nbsp;
+        <a href="https://github.com/charafeddine/baby_monitor" target="_blank">DevOps Architecture</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,51 @@
+name: babymonitor
+description: "Smart ultra low-latency Baby Monitor application for Android & iOS."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # Real-time WebRTC
+  flutter_webrtc: ^0.11.7
+
+  # QR Code Pairing
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.1.1
+
+  # Audio & Lullabies
+  audioplayers: ^6.0.0
+
+  # Hardware Telemetry & Remote Control
+  battery_plus: ^6.0.1
+  torch_light: ^1.0.0
+  wakelock_plus: ^1.2.5
+
+  # Background Audio & Persistence
+  flutter_foreground_task: ^6.1.1
+  shared_preferences: ^2.2.3
+
+  # Network Discovery & Utilities
+  bonsoir: ^5.0.0
+  uuid: ^4.4.0
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/lullabies/

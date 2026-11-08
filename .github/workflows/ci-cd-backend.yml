@@ -1,0 +1,96 @@
+name: Backend CI/CD & Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'deployments/**'
+      - '.github/workflows/ci-cd-backend.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'deployments/**'
+      - '.github/workflows/ci-cd-backend.yml'
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+jobs:
+  test:
+    name: Unit Tests & Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: backend/go.sum
+
+      - name: Download Go Dependencies
+        run: |
+          cd backend
+          go mod download
+
+      - name: Run Unit Tests with Race Detector
+        run: |
+          cd backend
+          go test -v -race -coverprofile=coverage.out ./...
+
+  docker:
+    name: Multi-Arch Build & Vulnerability Scan
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (Multi-Arch)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Local Image for Security Scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          load: true
+          tags: baby-monitor-signaling:scan
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'baby-monitor-signaling:scan'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Build and Push Multi-Arch Image (amd64, arm64)
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/baby-monitor-signaling:latest
+            ghcr.io/${{ github.repository_owner }}/baby-monitor-signaling:${{ github.sha }}
