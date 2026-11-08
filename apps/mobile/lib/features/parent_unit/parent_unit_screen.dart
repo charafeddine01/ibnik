@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../core/services/webrtc_service.dart';
@@ -93,11 +94,15 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
 
     // 3. Setup Local P2P Client
     _p2pClient.onDiscoveryProgress = (status) {
-      if (mounted) setState(() => _statusText = status);
+      if (mounted) {
+        setState(() => _statusText = status);
+      }
     };
 
     _p2pClient.onConnected = () {
-      if (mounted) setState(() => _statusText = 'Connected to Baby Unit socket');
+      if (mounted) {
+        setState(() => _statusText = 'Connected to Baby Unit socket');
+      }
     };
 
     _p2pClient.onMessageReceived = (msg) async {
@@ -133,7 +138,7 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
     };
 
     // 4. Initiate connection
-    _connect();
+    unawaited(_connect());
   }
 
   Future<void> _connect() async {
@@ -179,7 +184,7 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
       builder: (_) => LullabySheet(
         isPlaying: _isLullabyPlaying,
         activeTrack: _activeTrack,
-        onPlay: (track, timerMinutes) {
+        onPlayTrack: (LullabyTrack track, int timerMinutes) {
           setState(() {
             _isLullabyPlaying = true;
             _activeTrack = track;
@@ -203,8 +208,8 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
 
   @override
   void dispose() {
-    _p2pClient.disconnect();
-    _webrtcService.dispose();
+    unawaited(_p2pClient.disconnect());
+    unawaited(_webrtcService.dispose());
     super.dispose();
   }
 

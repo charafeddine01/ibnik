@@ -50,4 +50,6 @@ class BatteryService {
     _stateSubscription?.cancel();
     _pollingTimer?.cancel();
   }
+
+  void dispose() => stop();
 }

@@ -104,21 +104,25 @@ class LocalP2PClient {
       final targetIp = '$subnetPrefix$host';
 
       // Skip probing own IP
-      if (targetIp == localIp) continue;
+      if (targetIp == localIp) {
+        continue;
+      }
 
       activeProbes++;
-      _probeHost(client, targetIp, port, roomId).then((isMatch) {
-        if (isMatch && !foundIpCompleter.isCompleted) {
-          foundIpCompleter.complete(targetIp);
-        }
-      }).catchError((_) {
-        // ignore probe errors
-      }).whenComplete(() {
-        activeProbes--;
-        if (activeProbes == 0 && !foundIpCompleter.isCompleted) {
-          foundIpCompleter.complete(null);
-        }
-      });
+      unawaited(
+        _probeHost(client, targetIp, port, roomId).then((isMatch) {
+          if (isMatch && !foundIpCompleter.isCompleted) {
+            foundIpCompleter.complete(targetIp);
+          }
+        }).catchError((_) {
+          // ignore probe errors
+        }).whenComplete(() {
+          activeProbes--;
+          if (activeProbes == 0 && !foundIpCompleter.isCompleted) {
+            foundIpCompleter.complete(null);
+          }
+        }),
+      );
     }
 
     // Wait up to 3.5 seconds for probe to return

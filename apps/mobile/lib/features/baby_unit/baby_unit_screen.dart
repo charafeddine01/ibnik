@@ -174,11 +174,11 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
   void dispose() {
     _dbSimulatorTimer?.cancel();
     _batteryService.dispose();
-    _discoveryService.stop();
-    _p2pServer.stop();
+    unawaited(_discoveryService.stop());
+    unawaited(_p2pServer.stop());
     _lullabyService.dispose();
-    _webrtcService.dispose();
-    WakelockPlus.disable();
+    unawaited(_webrtcService.dispose());
+    unawaited(WakelockPlus.disable());
     super.dispose();
   }
 
