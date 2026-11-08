@@ -1,4 +1,4 @@
-name: Android Continuous Delivery (Google Play & APK Release)
+name: "Android Continuous Delivery (Google Play and APK Release)"
 
 on:
   push:
