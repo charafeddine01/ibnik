@@ -10,10 +10,6 @@ platform :android do
   lane :deploy_play_store do |options|
     track_name = options[:track] || "internal"
 
-    # 1. Build signed AAB using Flutter
-    build_aab
-
-    # 2. Upload to Google Play
     upload_to_play_store(
       track: track_name,
       aab: "../build/app/outputs/bundle/release/app-release.aab",

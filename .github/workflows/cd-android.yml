@@ -1,9 +1,9 @@
-name: Android Continuous Delivery (Google Play)
+name: Android Continuous Delivery (Google Play & APK Release)
 
 on:
   push:
     tags:
-      - 'v*.*.*' # Triggered when a new release tag is created
+      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       track:
@@ -19,7 +19,7 @@ on:
 
 jobs:
   deploy_android:
-    name: Build & Release to Google Play
+    name: Build & Release Android App
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -50,38 +50,64 @@ jobs:
           gem install bundler
           bundle install || gem install fastlane
 
-      - name: Decode Android Keystore
+      - name: Configure Signing Keystore
         working-directory: apps/mobile/android
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 --decode > app/upload-keystore.jks
+            echo "$KEYSTORE_BASE64" | base64 --decode > app/ibnik-upload-key.jks
+            cat <<EOF > key.properties
+          storePassword=${KEYSTORE_PASSWORD:-IbnikKeyStore2026Secure!}
+          keyPassword=${KEY_PASSWORD:-IbnikKeyStore2026Secure!}
+          keyAlias=${KEY_ALIAS:-ibnik}
+          storeFile=ibnik-upload-key.jks
+          EOF
+            echo "Keystore and key.properties created."
           else
-            echo "Skipping keystore decode - test build mode"
+            echo "No keystore secret found, proceeding with default unsigned/debug configuration."
           fi
 
-      - name: Decode Google Play Service Account Key
+      - name: Configure Google Play Service Account Key
         working-directory: apps/mobile/android
         env:
           PLAY_KEY_JSON: ${{ secrets.PLAY_STORE_JSON_KEY }}
         run: |
           if [ -n "$PLAY_KEY_JSON" ]; then
             echo "$PLAY_KEY_JSON" > play-store-key.json
-          else
-            echo "Skipping Play Store credentials - build only mode"
+            echo "Google Play service account key written."
           fi
 
       - name: Install Flutter Dependencies
         working-directory: apps/mobile
         run: flutter pub get
 
-      - name: Deploy via Fastlane
+      - name: Build Signed APK
+        working-directory: apps/mobile
+        run: flutter build apk --release
+
+      - name: Build Signed App Bundle (AAB)
+        working-directory: apps/mobile
+        run: flutter build appbundle --release
+
+      - name: Upload Build Artifacts (APK & AAB)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ibnik-android-release
+          path: |
+            apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+            apps/mobile/build/app/outputs/bundle/release/app-release.aab
+
+      - name: Deploy to Google Play Console
         working-directory: apps/mobile/android
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           TRACK: ${{ github.event.inputs.track || 'internal' }}
         run: |
-          bundle exec fastlane deploy_play_store track:$TRACK || bundle exec fastlane build_aab
+          if [ -f "play-store-key.json" ]; then
+            bundle exec fastlane deploy_play_store track:$TRACK
+          else
+            echo "Google Play service account key not present. Skipping automated Play Store upload. Artifacts are safely stored in workflow outputs."
+          fi

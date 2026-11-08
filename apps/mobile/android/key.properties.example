@@ -1,0 +1,6 @@
+# Example Android Keystore configuration
+# Copy this file to key.properties and fill in your real credentials
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=ibnik
+storeFile=ibnik-upload-key.jks
