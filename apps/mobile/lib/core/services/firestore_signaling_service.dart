@@ -72,7 +72,7 @@ class FirestoreSignalingService {
         );
 
         // Listen for candidates from parent
-        _candidateSubscription?.cancel();
+        await _candidateSubscription?.cancel();
         _candidateSubscription = _parentCandidatesRef(callId).snapshots().listen((candSnap) {
           for (final change in candSnap.docChanges) {
             if (change.type == DocumentChangeType.added) {
@@ -174,7 +174,7 @@ class FirestoreSignalingService {
         final offerData = data['offer'] as Map<String, dynamic>;
 
         // Listen for candidates from Baby Unit
-        _candidateSubscription?.cancel();
+        await _candidateSubscription?.cancel();
         _candidateSubscription = _babyCandidatesRef(callId).snapshots().listen((candSnap) {
           for (final change in candSnap.docChanges) {
             if (change.type == DocumentChangeType.added) {
