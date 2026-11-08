@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "272115978287",
+    "project_id": "ibnik-ces",
+    "storage_bucket": "ibnik-ces.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:272115978287:android:57d211169daeabedfe76da",
+        "android_client_info": {
+          "package_name": "com.charafeddine.ibnik"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA73rAr1Hm-hRTyEPexmOlkHIQSPpKpF_o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

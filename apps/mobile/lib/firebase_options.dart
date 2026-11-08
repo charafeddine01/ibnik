@@ -19,19 +19,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDummyKeyForIbnikBabyMonitorInitPlaceholder',
-    appId: '1:1450595981:android:ibnikbabymonitor',
-    messagingSenderId: '1450595981',
-    projectId: 'ibnik-baby-monitor',
-    storageBucket: 'ibnik-baby-monitor.firebasestorage.app',
+    apiKey: 'AIzaSyA73rAr1Hm-hRTyEPexmOlkHIQSPpKpF_o',
+    appId: '1:272115978287:android:57d211169daeabedfe76da',
+    messagingSenderId: '272115978287',
+    projectId: 'ibnik-ces',
+    storageBucket: 'ibnik-ces.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDummyKeyForIbnikBabyMonitorInitPlaceholder',
-    appId: '1:1450595981:ios:ibnikbabymonitor',
-    messagingSenderId: '1450595981',
-    projectId: 'ibnik-baby-monitor',
-    storageBucket: 'ibnik-baby-monitor.firebasestorage.app',
+    apiKey: 'AIzaSyA73rAr1Hm-hRTyEPexmOlkHIQSPpKpF_o',
+    appId: '1:272115978287:ios:57d211169daeabedfe76da',
+    messagingSenderId: '272115978287',
+    projectId: 'ibnik-ces',
+    storageBucket: 'ibnik-ces.firebasestorage.app',
     iosBundleId: 'com.charafeddine.ibnik',
   );
 }
