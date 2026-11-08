@@ -244,7 +244,7 @@ class WebRTCService {
     _isDisposed = true;
 
     try {
-      _dataChannel?.close();
+      await _dataChannel?.close();
       await localStream?.dispose();
       await remoteStream?.dispose();
       await _peerConnection?.close();
