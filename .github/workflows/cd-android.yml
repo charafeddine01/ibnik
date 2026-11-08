@@ -87,11 +87,11 @@ jobs:
 
       - name: Build Signed APK
         working-directory: apps/mobile
-        run: flutter build apk --release
+        run: flutter build apk --release --android-skip-build-dependency-validation
 
       - name: Build Signed App Bundle (AAB)
         working-directory: apps/mobile
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --android-skip-build-dependency-validation
 
       - name: Upload Build Artifacts (APK & AAB)
         uses: actions/upload-artifact@v4
