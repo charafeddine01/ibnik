@@ -21,6 +21,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   final DeviceRegistryService _registryService = DeviceRegistryService();
   List<Map<String, String>> _pairedCameras = [];
+  String? _myBabyChannel;
+  String? _myBabyName;
+  StreamSubscription<DocumentSnapshot>? _incomingCallSubscription;
   bool _isLoadingCameras = true;
 
   @override
@@ -31,16 +34,70 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadPairedCameras() async {
     final list = await _registryService.getPairedCamerasLocal();
+    final myChannel = await _registryService.getMyBabyChannel();
+    final myName = await _registryService.getMyBabyName();
+
+    if (myChannel != null) {
+      // Maintain standby presence in cloud registry
+      unawaited(_registryService.registerChannel(
+        channelId: myChannel,
+        name: myName,
+      ));
+      _registryService.startChannelHeartbeat(
+        channelId: myChannel,
+        getBatteryLevel: () => 100,
+        getIsCharging: () => false,
+      );
+
+      // Listen for incoming live stream calls from Parent Unit
+      _listenForIncomingParentCall(myChannel, myName);
+    }
+
     if (mounted) {
       setState(() {
         _pairedCameras = list;
+        _myBabyChannel = myChannel;
+        _myBabyName = myName;
         _isLoadingCameras = false;
       });
     }
   }
 
+  void _listenForIncomingParentCall(String channelId, String cameraName) {
+    if (!_registryService.isFirebaseAvailable) return;
+    _incomingCallSubscription?.cancel();
+    _incomingCallSubscription = FirebaseFirestore.instance
+        .collection('calls')
+        .doc(channelId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!snapshot.exists || !mounted) return;
+      final data = snapshot.data();
+      final status = data?['status'] as String?;
+      if (status == 'calling') {
+        debugPrint('HomeScreen: Incoming call from Parent Unit! Auto-launching Nursery Camera...');
+        _incomingCallSubscription?.cancel();
+        if (!mounted) return;
+        final nav = Navigator.of(context);
+        unawaited(nav.push(
+          MaterialPageRoute<void>(
+            builder: (_) => BabyUnitScreen(
+              roomId: channelId,
+              deviceName: cameraName,
+            ),
+          ),
+        ).then((_) {
+          unawaited(_loadPairedCameras());
+        }));
+      }
+    }, onError: (Object e) {
+      debugPrint('HomeScreen: Incoming call listener notice: $e');
+    });
+  }
+
   @override
   void dispose() {
+    _incomingCallSubscription?.cancel();
     _registryService.dispose();
     super.dispose();
   }
@@ -185,6 +242,103 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 32),
 
+              // Active Baby Unit Card (If this phone is configured as the nursery camera)
+              if (_myBabyChannel != null) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5), width: 1.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.videocam_rounded, color: Color(0xFF10B981), size: 26),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _myBabyName ?? 'Nursery Camera',
+                                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'This phone is the Nursery Camera',
+                                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle),
+                                ),
+                                SizedBox(width: 6),
+                                Text('Standby', style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Ready to stream. When the Parent Unit connects, this phone will stream video & audio automatically.',
+                        style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF10B981),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                              label: const Text('Open Camera Feed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              onPressed: () => _onStartBabyUnit(),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.white38),
+                            tooltip: 'Reset Nursery Camera Role',
+                            onPressed: () async {
+                              await _registryService.clearMyBabyChannel();
+                              await _loadPairedCameras();
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               // Paired Baby Cameras Section (Permanent Pairing)
               const Text(
                 'Paired Baby Cameras',
@@ -204,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: CircularProgressIndicator(color: Color(0xFF4F46E5), strokeWidth: 2),
                   ),
                 )
-              else if (_pairedCameras.isEmpty)
+              else if (_pairedCameras.isEmpty && _myBabyChannel == null)
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
@@ -225,6 +379,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 )
+              else if (_pairedCameras.isEmpty && _myBabyChannel != null)
+                const SizedBox.shrink()
               else
                 Column(
                   children: _pairedCameras.map((camera) {

@@ -163,6 +163,14 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
         _toggleTorch();
       } else if (cmd == 'flip_camera') {
         _webrtcService.switchCamera();
+      } else if (cmd == 'toggle_baby_camera') {
+        final enabled = data['enabled'] as bool? ?? true;
+        _webrtcService.setCameraEnabled(enabled);
+        if (mounted) setState(() {});
+      } else if (cmd == 'toggle_baby_mic') {
+        final enabled = data['enabled'] as bool? ?? true;
+        _webrtcService.setMicrophoneMute(!enabled);
+        if (mounted) setState(() {});
       } else if (cmd == 'play_lullaby') {
         final trackIndex = data['track_index'] as int? ?? 0;
         final duration = data['duration_minutes'] as int? ?? 30;

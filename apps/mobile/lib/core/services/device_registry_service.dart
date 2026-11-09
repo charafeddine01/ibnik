@@ -98,12 +98,12 @@ class DeviceRegistryService {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
       try {
-        await _channelsRef().doc(channelId).update({
+        await _channelsRef().doc(channelId).set({
           'is_online': true,
           'battery_level': getBatteryLevel(),
           'is_charging': getIsCharging(),
           'last_seen': FieldValue.serverTimestamp(),
-        });
+        }, SetOptions(merge: true));
       } catch (e) {
         debugPrint('Channel heartbeat sync error: $e');
       }

@@ -162,6 +162,12 @@ class WebRTCService {
       if (event.streams.isNotEmpty) {
         remoteStream = event.streams[0];
         remoteRenderer.srcObject = remoteStream;
+      } else {
+        remoteStream ??= MediaStream('remote_stream', 'remote_stream');
+        remoteStream!.addTrack(event.track);
+        if (event.track.kind == 'video') {
+          remoteRenderer.srcObject = remoteStream;
+        }
       }
     };
 
@@ -296,7 +302,7 @@ class WebRTCService {
     final payload = candidateMsg.payload;
     if (payload == null) return;
     final candidateStr = payload['candidate'] as String?;
-    if (candidateStr == null) return;
+    if (candidateStr == null || candidateStr.trim().isEmpty) return;
     final sdpMid = payload['sdpMid'] as String?;
     final sdpMLineIndex = (payload['sdpMLineIndex'] as num?)?.toInt();
 
@@ -325,6 +331,24 @@ class WebRTCService {
   void setMicrophoneMute(bool muted) {
     if (localStream != null) {
       final audioTracks = localStream!.getAudioTracks();
+      for (var track in audioTracks) {
+        track.enabled = !muted;
+      }
+    }
+  }
+
+  void setCameraEnabled(bool enabled) {
+    if (localStream != null) {
+      final videoTracks = localStream!.getVideoTracks();
+      for (var track in videoTracks) {
+        track.enabled = enabled;
+      }
+    }
+  }
+
+  void setRemoteAudioMuted(bool muted) {
+    if (remoteStream != null) {
+      final audioTracks = remoteStream!.getAudioTracks();
       for (var track in audioTracks) {
         track.enabled = !muted;
       }

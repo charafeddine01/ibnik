@@ -15,6 +15,7 @@ class FirestoreSignalingService {
   Timer? _retryTimer;
   String? _currentCallId;
   bool _hasReceivedOffer = false;
+  bool _isHandlingCall = false;
 
   DocumentReference _callRef(String callId) => _firestore.collection('calls').doc(callId);
 
@@ -32,6 +33,7 @@ class FirestoreSignalingService {
     required VoidCallback onDisconnected,
   }) async {
     _currentCallId = callId;
+    _isHandlingCall = false;
 
     // Check if Parent has already initiated a call before wiping state
     try {
@@ -61,7 +63,17 @@ class FirestoreSignalingService {
 
       // 1. Parent is initiating a connection call
       if (status == 'calling') {
+        if (_isHandlingCall) {
+          debugPrint('FirestoreSignaling: Already processing call, ignoring ping');
+          return;
+        }
+        _isHandlingCall = true;
         debugPrint('FirestoreSignaling: Parent is calling! Generating WebRTC offer...');
+
+        // Ensure camera & mic are opened BEFORE creating PeerConnection so tracks are added
+        if (webrtcService.localStream == null) {
+          await webrtcService.openUserMedia(isBabyUnit: true);
+        }
 
         // Setup candidate sending callback from WebRTC to Firestore
         webrtcService.onSignalingMessage = (msg) async {
@@ -103,10 +115,6 @@ class FirestoreSignalingService {
           }
         }, onError: (Object e) => debugPrint('Error in parent candidates stream: $e'));
 
-        // Create and write Offer to Firestore
-        if (webrtcService.localStream == null) {
-          await webrtcService.openUserMedia(isBabyUnit: true);
-        }
         final RTCSessionDescription offer = await webrtcService.createAndSendOfferRaw();
 
         try {
@@ -132,9 +140,12 @@ class FirestoreSignalingService {
         onConnected();
       }
 
-      // 3. Call ended
-      if (status == 'ended') {
-        onDisconnected();
+      // 3. Call ended or reset to idle
+      if (status == 'ended' || status == 'idle') {
+        _isHandlingCall = false;
+        if (status == 'ended') {
+          onDisconnected();
+        }
       }
     }, onError: (Object e) => debugPrint('Error in call listener: $e'));
   }
@@ -191,12 +202,22 @@ class FirestoreSignalingService {
         timer.cancel();
         return;
       }
-      debugPrint('FirestoreSignaling: Pinging "calling" state...');
       try {
-        await _callRef(callId).set({
-          'status': 'calling',
+        final currentSnap = await _callRef(callId).get();
+        if (!currentSnap.exists) return;
+        final curData = currentSnap.data() as Map<String, dynamic>?;
+        final curStatus = curData?['status'] as String?;
+        if (curStatus != 'calling') {
+          // Status has moved to offered or answered or ended! Do not overwrite!
+          if (curStatus == 'offered' || curStatus == 'answered') {
+            _hasReceivedOffer = true;
+            timer.cancel();
+          }
+          return;
+        }
+        await _callRef(callId).update({
           'ping': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        });
       } catch (_) {}
     });
 
@@ -210,7 +231,7 @@ class FirestoreSignalingService {
       if (status == 'offered' && data.containsKey('offer')) {
         _hasReceivedOffer = true;
         _retryTimer?.cancel();
-        onStatusChanged('Negotiating secure WebRTC stream...');
+        onStatusChanged('Negotiating secure stream with Baby Unit...');
         final offerData = data['offer'] as Map<String, dynamic>;
 
         // Listen for candidates from Baby Unit
@@ -250,6 +271,7 @@ class FirestoreSignalingService {
           debugPrint('Error updating answer: $e');
         }
 
+        onStatusChanged('Connecting peer-to-peer WebRTC stream...');
         onConnected();
       }
 
@@ -296,5 +318,7 @@ class FirestoreSignalingService {
     _callSubscription = null;
     _candidateSubscription = null;
     _currentCallId = null;
+    _isHandlingCall = false;
+    _hasReceivedOffer = false;
   }
 }

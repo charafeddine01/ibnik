@@ -35,6 +35,10 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
 
   bool _isConnected = false;
   bool _isTalking = false;
+  bool _isHandsFreeMic = false;
+  bool _isNurseryAudioMuted = false;
+  bool _isBabyCameraEnabled = true;
+  bool _isBabyMicEnabled = true;
   String _statusText = 'Initializing WebRTC...';
   double _babyDb = 35.0;
   int _babyBattery = 100;
@@ -216,11 +220,13 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
   }
 
   void _onStartTalking() {
+    if (_isHandsFreeMic) return;
     setState(() => _isTalking = true);
     _webrtcService.setMicrophoneMute(false);
   }
 
   void _onStopTalking() {
+    if (_isHandsFreeMic) return;
     setState(() => _isTalking = false);
     _webrtcService.setMicrophoneMute(true);
   }
@@ -231,6 +237,47 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
 
   void _flipBabyCamera() {
     _webrtcService.sendTelemetry({'command': 'flip_camera'});
+  }
+
+  void _toggleBabyCamera() {
+    setState(() => _isBabyCameraEnabled = !_isBabyCameraEnabled);
+    _webrtcService.sendTelemetry({
+      'command': 'toggle_baby_camera',
+      'enabled': _isBabyCameraEnabled,
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(milliseconds: 1500),
+        content: Text(_isBabyCameraEnabled ? 'Nursery camera enabled' : 'Nursery camera paused (Audio only)'),
+      ),
+    );
+  }
+
+  void _toggleBabyMic() {
+    setState(() => _isBabyMicEnabled = !_isBabyMicEnabled);
+    _webrtcService.sendTelemetry({
+      'command': 'toggle_baby_mic',
+      'enabled': _isBabyMicEnabled,
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(milliseconds: 1500),
+        content: Text(_isBabyMicEnabled ? 'Nursery microphone active' : 'Nursery microphone muted'),
+      ),
+    );
+  }
+
+  void _toggleNurseryAudio() {
+    setState(() => _isNurseryAudioMuted = !_isNurseryAudioMuted);
+    _webrtcService.setRemoteAudioMuted(_isNurseryAudioMuted);
+  }
+
+  void _toggleHandsFreeMic() {
+    setState(() {
+      _isHandsFreeMic = !_isHandsFreeMic;
+      _isTalking = _isHandsFreeMic;
+    });
+    _webrtcService.setMicrophoneMute(!_isHandsFreeMic);
   }
 
   void _showLullabySheet() {
@@ -423,31 +470,66 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
                   children: [
                     // Top Secondary Controls
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.65),
+                        color: Colors.black.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(color: Colors.white12),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
+                          // 1. Remote Baby Camera Toggle
                           IconButton(
                             icon: Icon(
-                              _babyTorchOn ? Icons.flash_on : Icons.flash_off,
+                              _isBabyCameraEnabled ? Icons.videocam_rounded : Icons.videocam_off_rounded,
+                              color: _isBabyCameraEnabled ? const Color(0xFF10B981) : Colors.redAccent,
+                            ),
+                            tooltip: _isBabyCameraEnabled ? 'Pause Nursery Video' : 'Enable Nursery Video',
+                            onPressed: _toggleBabyCamera,
+                          ),
+
+                          // 2. Remote Baby Mic Toggle
+                          IconButton(
+                            icon: Icon(
+                              _isBabyMicEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
+                              color: _isBabyMicEnabled ? const Color(0xFF10B981) : Colors.redAccent,
+                            ),
+                            tooltip: _isBabyMicEnabled ? 'Mute Nursery Mic' : 'Enable Nursery Mic',
+                            onPressed: _toggleBabyMic,
+                          ),
+
+                          // 3. Room Speaker / Audio Mute
+                          IconButton(
+                            icon: Icon(
+                              _isNurseryAudioMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                              color: _isNurseryAudioMuted ? Colors.redAccent : Colors.white70,
+                            ),
+                            tooltip: _isNurseryAudioMuted ? 'Unmute Room Audio' : 'Mute Room Audio',
+                            onPressed: _toggleNurseryAudio,
+                          ),
+
+                          // 4. Flip Nursery Camera
+                          IconButton(
+                            icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white70),
+                            tooltip: 'Flip Nursery Camera',
+                            onPressed: _flipBabyCamera,
+                          ),
+
+                          // 5. Nursery Nightlight Torch
+                          IconButton(
+                            icon: Icon(
+                              _babyTorchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
                               color: _babyTorchOn ? Colors.amber : Colors.white70,
                             ),
                             tooltip: 'Toggle Nursery Flashlight',
                             onPressed: _toggleBabyTorch,
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.flip_camera_ios, color: Colors.white70),
-                            tooltip: 'Flip Nursery Camera',
-                            onPressed: _flipBabyCamera,
-                          ),
+
+                          // 6. Lullabies Sheet
                           IconButton(
                             icon: Icon(
-                              Icons.music_note,
+                              Icons.music_note_rounded,
                               color: _isLullabyPlaying ? const Color(0xFF818CF8) : Colors.white70,
                             ),
                             tooltip: 'Lullabies & White Noise',
@@ -459,46 +541,91 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
 
                     const SizedBox(height: 12),
 
-                    // Push-To-Talk Walkie-Talkie Button
-                    GestureDetector(
-                      onTapDown: (_) => _onStartTalking(),
-                      onTapUp: (_) => _onStopTalking(),
-                      onTapCancel: () => _onStopTalking(),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: double.infinity,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: _isTalking ? Colors.redAccent : const Color(0xFF4F46E5),
+                    // Bottom Row: Hands-Free Mic Toggle + Push-To-Talk Button
+                    Row(
+                      children: [
+                        // Hands-Free Mic Toggle Button
+                        InkWell(
                           borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (_isTalking ? Colors.redAccent : const Color(0xFF4F46E5)).withOpacity(0.4),
-                              blurRadius: 16,
-                              spreadRadius: 2,
-                            )
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _isTalking ? Icons.mic : Icons.mic_none,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _isTalking ? 'TALKING TO BABY... (RELEASE TO STOP)' : 'HOLD TO TALK TO BABY',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
+                          onTap: _toggleHandsFreeMic,
+                          child: Container(
+                            height: 54,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: _isHandsFreeMic ? Colors.redAccent : const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color: _isHandsFreeMic ? Colors.redAccent : Colors.white24,
                               ),
                             ),
-                          ],
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _isHandsFreeMic ? Icons.mic_rounded : Icons.mic_none_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _isHandsFreeMic ? 'MIC ON' : 'AUTO',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+
+                        const SizedBox(width: 8),
+
+                        // Push-To-Talk Walkie-Talkie Button
+                        Expanded(
+                          child: GestureDetector(
+                            onTapDown: (_) => _onStartTalking(),
+                            onTapUp: (_) => _onStopTalking(),
+                            onTapCancel: () => _onStopTalking(),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              height: 54,
+                              decoration: BoxDecoration(
+                                color: _isTalking ? Colors.redAccent : const Color(0xFF4F46E5),
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (_isTalking ? Colors.redAccent : const Color(0xFF4F46E5)).withOpacity(0.4),
+                                    blurRadius: 16,
+                                    spreadRadius: 2,
+                                  )
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _isTalking ? Icons.mic : Icons.mic_none,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _isHandsFreeMic
+                                        ? 'TALKING (HANDS-FREE ON)'
+                                        : (_isTalking ? 'TALKING (RELEASE TO STOP)' : 'HOLD TO TALK TO BABY'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
