@@ -32,12 +32,6 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
     final randomPin = 100000 + Random().nextInt(900000);
     _channelId = randomPin.toString();
 
-    // Immediately save to local paired list so the camera is NEVER lost if the user exits
-    unawaited(_registryService.savePairedCameraLocal(
-      channelId: _channelId,
-      name: _nameController.text.trim(),
-    ));
-
     _startLocalPairingServer();
     _initChannelListener();
   }

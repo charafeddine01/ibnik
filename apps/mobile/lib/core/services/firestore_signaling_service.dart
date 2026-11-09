@@ -202,10 +202,17 @@ class FirestoreSignalingService {
 
     // Periodic heartbeat to re-assert "calling" status until Baby Unit responds
     _retryTimer?.cancel();
+    int retryCount = 0;
     _retryTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
       if (_hasReceivedOffer || _currentCallId != callId) {
         timer.cancel();
         return;
+      }
+      retryCount++;
+      if (retryCount == 3) {
+        onStatusChanged('Waiting for Baby Unit to respond... (Waking camera)');
+      } else if (retryCount == 6) {
+        onStatusChanged('Baby camera is not answering yet. Ensure Baby Unit is running & connected.');
       }
       try {
         final currentSnap = await _callRef(callId).get();
