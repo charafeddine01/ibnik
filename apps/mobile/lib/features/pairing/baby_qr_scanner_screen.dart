@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/services/device_registry_service.dart';
@@ -36,6 +37,8 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
 
       String channelId = raw;
       String cameraName = 'Nursery Camera';
+      String targetIp = '';
+      int targetPort = 8899;
 
       try {
         final data = jsonDecode(raw) as Map<String, dynamic>;
@@ -43,6 +46,12 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
           channelId = data['channel_id'] as String;
           if (data.containsKey('name')) {
             cameraName = data['name'] as String;
+          }
+          if (data.containsKey('ip') && data['ip'] is String) {
+            targetIp = data['ip'] as String;
+          }
+          if (data.containsKey('port') && data['port'] is num) {
+            targetPort = (data['port'] as num).toInt();
           }
         }
       } catch (_) {
@@ -56,22 +65,35 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
         // Schedule async pairing on the next frame so CameraX onDetect returns immediately
         // without deadlocking the Android camera analyzer thread.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          unawaited(_completePairing(channelId, cameraName));
+          unawaited(_completePairing(channelId, cameraName, targetIp, targetPort));
         });
         break;
       }
     }
   }
 
-  Future<void> _completePairing(String channelId, String cameraName) async {
+  Future<void> _completePairing(String channelId, String cameraName, String targetIp, int targetPort) async {
     final nav = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      // 1. Save locally so this Baby Phone remembers its pairing forever
+      // 1. Direct local Wi-Fi handshake (if Parent phone is on the same local network)
+      if (targetIp.isNotEmpty) {
+        try {
+          final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+          final uri = Uri.parse('http://$targetIp:$targetPort/pair?channel_id=$channelId&name=${Uri.encodeComponent(cameraName)}');
+          final req = await client.getUrl(uri);
+          final resp = await req.close();
+          debugPrint('Direct local Wi-Fi pair notification response: ${resp.statusCode}');
+        } catch (e) {
+          debugPrint('Direct local Wi-Fi pair notice: $e');
+        }
+      }
+
+      // 2. Save locally so this Baby Phone remembers its pairing forever
       await _registryService.saveMyBabyChannel(channelId: channelId, name: cameraName);
 
-      // 2. Notify Parent over Firestore (with 4-second timeout so it never hangs)
+      // 3. Notify Parent over Firestore (with 4-second timeout for cloud fallback)
       try {
         await _registryService.registerChannel(
           channelId: channelId,
@@ -80,17 +102,17 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
           isCharging: false,
         ).timeout(const Duration(seconds: 4));
       } catch (e) {
-        debugPrint('registerChannel error or timeout: $e');
+        debugPrint('registerChannel notice: $e');
       }
 
-      // 3. Stop scanner cleanly before opening WebRTC camera
+      // 4. Stop scanner cleanly before opening WebRTC camera
       try {
         await _controller.stop();
       } catch (e) {
         debugPrint('MobileScanner stop error: $e');
       }
 
-      // 4. Short pause to ensure Android CameraX fully releases hardware camera
+      // 5. Short pause to ensure Android CameraX fully releases hardware camera
       await Future<void>.delayed(const Duration(milliseconds: 250));
 
       if (!mounted) return;
