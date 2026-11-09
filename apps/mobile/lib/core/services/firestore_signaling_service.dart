@@ -12,7 +12,9 @@ class FirestoreSignalingService {
 
   StreamSubscription<DocumentSnapshot>? _callSubscription;
   StreamSubscription<QuerySnapshot>? _candidateSubscription;
+  Timer? _retryTimer;
   String? _currentCallId;
+  bool _hasReceivedOffer = false;
 
   DocumentReference _callRef(String callId) => _firestore.collection('calls').doc(callId);
 
@@ -30,14 +32,28 @@ class FirestoreSignalingService {
     required VoidCallback onDisconnected,
   }) async {
     _currentCallId = callId;
-    await cleanCall(callId);
 
-    // Initialize call document in idle state
-    await _callRef(callId).set({
-      'status': 'idle',
-      'created_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    // Check if Parent has already initiated a call before wiping state
+    try {
+      final doc = await _callRef(callId).get();
+      final status = (doc.data() as Map<String, dynamic>?)?['status'];
+      if (status != 'calling') {
+        await cleanCall(callId);
+        await _callRef(callId).set({
+          'status': 'idle',
+          'created_at': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (_) {
+      try {
+        await _callRef(callId).set({
+          'status': 'idle',
+          'created_at': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+    }
 
+    await _callSubscription?.cancel();
     _callSubscription = _callRef(callId).snapshots().listen((snapshot) async {
       if (!snapshot.exists) return;
       final data = snapshot.data() as Map<String, dynamic>? ?? {};
@@ -85,7 +101,7 @@ class FirestoreSignalingService {
               )));
             }
           }
-        });
+        }, onError: (e) => debugPrint('Error in parent candidates stream: $e'));
 
         // Create and write Offer to Firestore
         if (webrtcService.localStream == null) {
@@ -93,10 +109,14 @@ class FirestoreSignalingService {
         }
         final RTCSessionDescription offer = await webrtcService.createAndSendOfferRaw();
 
-        await _callRef(callId).update({
-          'status': 'offered',
-          'offer': {'sdp': offer.sdp, 'type': offer.type},
-        });
+        try {
+          await _callRef(callId).update({
+            'status': 'offered',
+            'offer': {'sdp': offer.sdp, 'type': offer.type},
+          });
+        } catch (e) {
+          debugPrint('Error writing offer: $e');
+        }
       }
 
       // 2. Parent has answered the offer
@@ -116,7 +136,7 @@ class FirestoreSignalingService {
       if (status == 'ended') {
         onDisconnected();
       }
-    });
+    }, onError: (e) => debugPrint('Error in call listener: $e'));
   }
 
   /// Initiates a connection call from the Parent Unit to the Baby Unit.
@@ -128,6 +148,7 @@ class FirestoreSignalingService {
     required VoidCallback onDisconnected,
   }) async {
     _currentCallId = callId;
+    _hasReceivedOffer = false;
     onStatusChanged('Requesting stream from Baby Unit...');
 
     // Clean old candidate subcollections
@@ -163,13 +184,32 @@ class FirestoreSignalingService {
       'created_at': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
+    // Periodic heartbeat to re-assert "calling" status until Baby Unit responds
+    _retryTimer?.cancel();
+    _retryTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (_hasReceivedOffer || _currentCallId != callId) {
+        timer.cancel();
+        return;
+      }
+      debugPrint('FirestoreSignaling: Pinging "calling" state...');
+      try {
+        await _callRef(callId).set({
+          'status': 'calling',
+          'ping': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+    });
+
     // Listen for Offer from Baby Unit
+    await _callSubscription?.cancel();
     _callSubscription = _callRef(callId).snapshots().listen((snapshot) async {
       if (!snapshot.exists) return;
       final data = snapshot.data() as Map<String, dynamic>? ?? {};
       final status = data['status'] as String? ?? 'idle';
 
       if (status == 'offered' && data.containsKey('offer')) {
+        _hasReceivedOffer = true;
+        _retryTimer?.cancel();
         onStatusChanged('Negotiating secure WebRTC stream...');
         final offerData = data['offer'] as Map<String, dynamic>;
 
@@ -187,7 +227,7 @@ class FirestoreSignalingService {
               )));
             }
           }
-        });
+        }, onError: (e) => debugPrint('Error in baby candidates stream: $e'));
 
         // Answer Offer
         final answer = await webrtcService.handleOfferAndReturnAnswer(
@@ -201,22 +241,28 @@ class FirestoreSignalingService {
         );
 
         // Write Answer to Firestore
-        await _callRef(callId).update({
-          'status': 'answered',
-          'answer': {'sdp': answer.sdp, 'type': answer.type},
-        });
+        try {
+          await _callRef(callId).update({
+            'status': 'answered',
+            'answer': {'sdp': answer.sdp, 'type': answer.type},
+          });
+        } catch (e) {
+          debugPrint('Error updating answer: $e');
+        }
 
         onConnected();
       }
 
       if (status == 'ended') {
+        _retryTimer?.cancel();
         onDisconnected();
       }
-    });
+    }, onError: (e) => debugPrint('Error in parent call listener: $e'));
   }
 
   /// Ends the active call and updates status to ended.
   Future<void> endCall(String? callId) async {
+    _retryTimer?.cancel();
     final id = callId ?? _currentCallId;
     if (id != null) {
       try {
@@ -243,6 +289,8 @@ class FirestoreSignalingService {
   }
 
   Future<void> dispose() async {
+    _retryTimer?.cancel();
+    _retryTimer = null;
     await _callSubscription?.cancel();
     await _candidateSubscription?.cancel();
     _callSubscription = null;

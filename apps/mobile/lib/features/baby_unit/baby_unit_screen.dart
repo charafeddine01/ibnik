@@ -61,7 +61,11 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
     await _lullabyService.init();
 
     // 1. Open nursery camera and microphone
-    await _webrtcService.openUserMedia(isBabyUnit: true);
+    try {
+      await _webrtcService.openUserMedia(isBabyUnit: true);
+    } catch (e) {
+      debugPrint('BabyUnit: Error opening camera/mic: $e');
+    }
     if (mounted) setState(() {});
 
     // 2. Cloud Signaling & Channel Registry Mode

@@ -69,18 +69,27 @@ class WebRTCService {
       },
       'video': isBabyUnit
           ? {
-              'mandatory': {
-                'minWidth': '1280',
-                'minHeight': '720',
-                'minFrameRate': '30',
-              },
               'facingMode': 'environment',
-              'optional': <Map<String, dynamic>>[],
+              'optional': <Map<String, dynamic>>[
+                {'minWidth': '1280'},
+                {'minHeight': '720'},
+                {'minFrameRate': '30'},
+              ],
             }
           : false,
     };
 
-    localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+    } catch (e) {
+      debugPrint('Failed to open camera with HD constraints ($e), falling back to standard video...');
+      final fallbackConstraints = <String, dynamic>{
+        'audio': true,
+        'video': isBabyUnit ? {'facingMode': 'environment'} : false,
+      };
+      localStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+    }
+
     if (isBabyUnit) {
       localRenderer.srcObject = localStream;
     }

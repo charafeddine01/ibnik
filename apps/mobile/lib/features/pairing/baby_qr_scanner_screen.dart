@@ -27,8 +27,9 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
     super.dispose();
   }
 
-  Future<void> _handleBarcode(BarcodeCapture capture) async {
+  void _handleBarcode(BarcodeCapture capture) {
     if (_hasScanned) return;
+
     for (final barcode in capture.barcodes) {
       final raw = barcode.rawValue;
       if (raw == null || raw.isEmpty) continue;
@@ -49,46 +50,82 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
       }
 
       if (channelId.isNotEmpty) {
-        setState(() => _hasScanned = true);
-        final messenger = ScaffoldMessenger.of(context);
-        final nav = Navigator.of(context);
-        await _controller.stop();
+        _hasScanned = true;
+        setState(() {}); // Triggers the "Verifying QR..." loading screen
 
-        // 1. Save locally so this Baby Phone remembers its pairing forever
-        await _registryService.saveMyBabyChannel(channelId: channelId, name: cameraName);
+        // Schedule async pairing on the next frame so CameraX onDetect returns immediately
+        // without deadlocking the Android camera analyzer thread.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          unawaited(_completePairing(channelId, cameraName));
+        });
+        break;
+      }
+    }
+  }
 
-        // 2. Notify Parent over Firestore
+  Future<void> _completePairing(String channelId, String cameraName) async {
+    final nav = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      // 1. Save locally so this Baby Phone remembers its pairing forever
+      await _registryService.saveMyBabyChannel(channelId: channelId, name: cameraName);
+
+      // 2. Notify Parent over Firestore (with 4-second timeout so it never hangs)
+      try {
         await _registryService.registerChannel(
           channelId: channelId,
           name: cameraName,
           batteryLevel: 100,
           isCharging: false,
-        );
+        ).timeout(const Duration(seconds: 4));
+      } catch (e) {
+        debugPrint('registerChannel error or timeout: $e');
+      }
 
-        if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              backgroundColor: Colors.green[800],
-              content: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text('Paired successfully! Starting Nursery Camera...'),
-                ],
-              ),
-            ),
-          );
+      // 3. Stop scanner cleanly before opening WebRTC camera
+      try {
+        await _controller.stop();
+      } catch (e) {
+        debugPrint('MobileScanner stop error: $e');
+      }
 
-          unawaited(nav.pushReplacement(
-            MaterialPageRoute<void>(
-              builder: (_) => BabyUnitScreen(
-                roomId: channelId,
-                deviceName: cameraName,
-              ),
+      // 4. Short pause to ensure Android CameraX fully releases hardware camera
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.green[800],
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 10),
+              Text('Paired successfully! Starting Nursery Camera...'),
+            ],
+          ),
+        ),
+      );
+
+      unawaited(nav.pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => BabyUnitScreen(
+            roomId: channelId,
+            deviceName: cameraName,
+          ),
+        ),
+      ));
+    } catch (e) {
+      debugPrint('Error handling scanned barcode: $e');
+      if (mounted) {
+        unawaited(nav.pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => BabyUnitScreen(
+              roomId: channelId,
+              deviceName: cameraName,
             ),
-          ));
-        }
-        break;
+          ),
+        ));
       }
     }
   }
@@ -180,6 +217,32 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
               ),
             ),
           ),
+
+          // 4. Verification & Transition Loading Overlay
+          if (_hasScanned)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.85),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: Color(0xFF10B981)),
+                      SizedBox(height: 20),
+                      Text(
+                        'QR Code Verified!',
+                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Linking devices and starting camera...',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
