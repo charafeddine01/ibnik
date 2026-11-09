@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/settings_service.dart';
+import 'core/services/background_monitor_service.dart';
 import 'features/auth/login_screen.dart';
 import 'features/home/home_screen.dart';
 import 'firebase_options.dart';
@@ -15,6 +17,15 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase initialization notice: $e');
   }
+
+  // Initialize background service & persistent settings
+  try {
+    await SettingsService().init();
+    BackgroundMonitorService.init();
+  } catch (e) {
+    debugPrint('Service init notice: $e');
+  }
+
   runApp(const ProviderScope(child: IbnikApp()));
 }
 

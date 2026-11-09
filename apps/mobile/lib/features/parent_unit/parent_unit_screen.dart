@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../core/services/webrtc_service.dart';
 import '../../core/services/lullaby_service.dart';
 import '../../core/services/local_p2p_client.dart';
 import '../../core/services/firestore_signaling_service.dart';
+import '../../core/services/settings_service.dart';
+import '../../core/services/background_monitor_service.dart';
+import '../settings/settings_screen.dart';
 import 'widgets/decibel_meter.dart';
 import '../lullaby/lullaby_sheet.dart';
 
@@ -47,10 +51,51 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
   bool _isLullabyPlaying = false;
   LullabyTrack? _activeTrack;
 
+  final SettingsService _settingsService = SettingsService();
+  bool _isHighNoiseAlert = false;
+  DateTime? _lastAlertTime;
+  Timer? _alertDismissTimer;
+
   @override
   void initState() {
     super.initState();
+    unawaited(BackgroundMonitorService.requestPermissions());
+    unawaited(BackgroundMonitorService.startMonitoringService(
+      title: '🍼 Ibnik Parent Monitor',
+      text: 'Connected to ${widget.deviceName ?? "Nursery Camera"} • Monitoring audio',
+    ));
     _initWebRTC();
+  }
+
+  void _checkNoiseAlert(double db) {
+    final settings = _settingsService.current;
+    if (!settings.isCryAlertEnabled) return;
+
+    if (db >= settings.noiseThreshold) {
+      final now = DateTime.now();
+      if (_lastAlertTime == null || now.difference(_lastAlertTime!).inSeconds >= 10) {
+        _lastAlertTime = now;
+        if (mounted) {
+          setState(() => _isHighNoiseAlert = true);
+        }
+
+        if (settings.isVibrationEnabled) {
+          HapticFeedback.vibrate();
+        }
+
+        unawaited(BackgroundMonitorService.updateNotification(
+          title: '⚠️ Nursery Noise Alert!',
+          text: 'Baby may be crying (${db.toInt()} dB > ${settings.noiseThreshold.toInt()} dB)',
+        ));
+
+        _alertDismissTimer?.cancel();
+        _alertDismissTimer = Timer(const Duration(seconds: 5), () {
+          if (mounted) {
+            setState(() => _isHighNoiseAlert = false);
+          }
+        });
+      }
+    }
   }
 
   Future<void> _initWebRTC() async {
@@ -67,6 +112,7 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
         setState(() {
           if (data.containsKey('db')) {
             _babyDb = (data['db'] as num).toDouble();
+            _checkNoiseAlert(_babyDb);
           }
           if (data.containsKey('battery_level')) {
             _babyBattery = data['battery_level'] as int;
@@ -368,6 +414,8 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
 
   @override
   void dispose() {
+    _alertDismissTimer?.cancel();
+    unawaited(BackgroundMonitorService.stopMonitoringService());
     if (widget.isCloudCall) {
       unawaited(_firestoreSignaling.endCall(widget.roomId));
       unawaited(_firestoreSignaling.dispose());
@@ -499,31 +547,96 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
                       ),
                     ),
 
-                    // Baby Battery Pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _babyIsCharging ? Icons.battery_charging_full : Icons.battery_std,
-                            color: _babyBattery < 20 ? Colors.redAccent : Colors.white,
-                            size: 16,
+                    // Right Side: Baby Battery Pill + Settings Button
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$_babyBattery%',
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _babyIsCharging ? Icons.battery_charging_full : Icons.battery_std,
+                                color: _babyBattery < 20 ? Colors.redAccent : Colors.white,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$_babyBattery%',
+                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          style: IconButton.styleFrom(backgroundColor: Colors.black45),
+                          icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 18),
+                          tooltip: 'Monitor Settings',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+
+              // High Noise / Cry Alert Banner
+              if (_isHighNoiseAlert)
+                Positioned(
+                  top: 66,
+                  left: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.red[800],
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.withOpacity(0.5),
+                          blurRadius: 16,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                '👶 Cry / High Noise Detected!',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              Text(
+                                '${_babyDb.toInt()} dB (Threshold: ${_settingsService.current.noiseThreshold.toInt()} dB)',
+                                style: const TextStyle(color: Colors.white70, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                          onPressed: () => setState(() => _isHighNoiseAlert = false),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
               // 3. Audio & Cry Decibel Meter
               if (_isConnected)

@@ -10,6 +10,7 @@ import '../pairing/baby_qr_scanner_screen.dart';
 import '../pairing/parent_pairing_screen.dart';
 import '../pairing/pairing_screen.dart';
 import '../parent_unit/parent_unit_screen.dart';
+import '../settings/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -185,22 +186,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
 
-                  // Sign Out Button (if logged in)
-                  if (user != null)
-                    IconButton(
-                      style: IconButton.styleFrom(backgroundColor: Colors.white10),
-                      icon: const Icon(Icons.logout_rounded, color: Colors.white70, size: 20),
-                      tooltip: 'Sign Out',
-                      onPressed: () async {
-                        final nav = Navigator.of(context);
-                        await _authService.signOut();
-                        if (mounted) {
-                          unawaited(nav.pushReplacement(
-                            MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
-                          ));
-                        }
-                      },
-                    ),
+                  // Top Actions: Settings & Sign Out
+                  Row(
+                    children: [
+                      IconButton(
+                        style: IconButton.styleFrom(backgroundColor: Colors.white10),
+                        icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 20),
+                        tooltip: 'Settings',
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                          );
+                        },
+                      ),
+                      if (user != null) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          style: IconButton.styleFrom(backgroundColor: Colors.white10),
+                          icon: const Icon(Icons.logout_rounded, color: Colors.white70, size: 20),
+                          tooltip: 'Sign Out',
+                          onPressed: () async {
+                            final nav = Navigator.of(context);
+                            await _authService.signOut();
+                            if (mounted) {
+                              unawaited(nav.pushReplacement(
+                                MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+                              ));
+                            }
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
 

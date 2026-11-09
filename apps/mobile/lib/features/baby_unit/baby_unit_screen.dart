@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:torch_light/torch_light.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import '../../core/services/background_monitor_service.dart';
 import '../../core/services/webrtc_service.dart';
 import '../../core/services/battery_service.dart';
 import '../../core/services/lullaby_service.dart';
@@ -53,6 +54,11 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
   void initState() {
     super.initState();
     unawaited(WakelockPlus.enable());
+    unawaited(BackgroundMonitorService.requestPermissions());
+    unawaited(BackgroundMonitorService.startMonitoringService(
+      title: '🍼 Ibnik Nursery Camera Active',
+      text: 'Streaming live video & audio • Noise monitoring active',
+    ));
     _initServices();
   }
 
@@ -255,6 +261,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
 
   @override
   void dispose() {
+    unawaited(BackgroundMonitorService.stopMonitoringService());
     _dbSimulatorTimer?.cancel();
     _batteryService.dispose();
     unawaited(_discoveryService.stop());
