@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
@@ -119,17 +120,17 @@ void _taskCallback() {
 
 class _MonitorTaskHandler extends TaskHandler {
   @override
-  Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
+  void onStart(DateTime timestamp, SendPort? sendPort) {
     debugPrint('Foreground monitor task started at $timestamp');
   }
 
   @override
-  Future<void> onRepeatEvent(DateTime timestamp) async {
+  void onRepeatEvent(DateTime timestamp, SendPort? sendPort) {
     // Periodic heartbeat keeps process alive
   }
 
   @override
-  Future<void> onDestroy(DateTime timestamp) async {
+  void onDestroy(DateTime timestamp, SendPort? sendPort) {
     debugPrint('Foreground monitor task destroyed at $timestamp');
   }
 }
