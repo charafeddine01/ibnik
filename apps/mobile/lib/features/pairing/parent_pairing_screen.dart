@@ -90,7 +90,7 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
           ));
         }
       }
-    }, onError: (e) {
+    }, onError: (Object e) {
       debugPrint('Channel subscription error: $e');
     });
   }

@@ -101,7 +101,7 @@ class FirestoreSignalingService {
               )));
             }
           }
-        }, onError: (e) => debugPrint('Error in parent candidates stream: $e'));
+        }, onError: (Object e) => debugPrint('Error in parent candidates stream: $e'));
 
         // Create and write Offer to Firestore
         if (webrtcService.localStream == null) {
@@ -136,7 +136,7 @@ class FirestoreSignalingService {
       if (status == 'ended') {
         onDisconnected();
       }
-    }, onError: (e) => debugPrint('Error in call listener: $e'));
+    }, onError: (Object e) => debugPrint('Error in call listener: $e'));
   }
 
   /// Initiates a connection call from the Parent Unit to the Baby Unit.
@@ -227,7 +227,7 @@ class FirestoreSignalingService {
               )));
             }
           }
-        }, onError: (e) => debugPrint('Error in baby candidates stream: $e'));
+        }, onError: (Object e) => debugPrint('Error in baby candidates stream: $e'));
 
         // Answer Offer
         final answer = await webrtcService.handleOfferAndReturnAnswer(
@@ -257,7 +257,7 @@ class FirestoreSignalingService {
         _retryTimer?.cancel();
         onDisconnected();
       }
-    }, onError: (e) => debugPrint('Error in parent call listener: $e'));
+    }, onError: (Object e) => debugPrint('Error in parent call listener: $e'));
   }
 
   /// Ends the active call and updates status to ended.
