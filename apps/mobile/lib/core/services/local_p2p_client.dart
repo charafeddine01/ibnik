@@ -161,21 +161,6 @@ class LocalP2PClient {
     } catch (_) {}
     return false;
   }
-    try {
-      final uri = Uri.parse('http://$ip:$port/probe?room=$roomId');
-      final request = await client.getUrl(uri);
-      final response = await request.close().timeout(const Duration(milliseconds: 1200));
-
-      if (response.statusCode == HttpStatus.ok) {
-        final body = await response.transform(utf8.decoder).join();
-        final json = jsonDecode(body) as Map<String, dynamic>;
-        if (json['status'] == 'ok' && json['room'] == roomId) {
-          return true;
-        }
-      }
-    } catch (_) {}
-    return false;
-  }
 
   /// Sends a signaling message to the Baby Unit.
   void sendMessage(SignalingMessage message) {
