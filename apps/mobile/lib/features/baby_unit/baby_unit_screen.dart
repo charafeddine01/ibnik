@@ -48,7 +48,6 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
   int _batteryLevel = 100;
   bool _isCharging = false;
   bool _isParentConnected = false;
-  String? _serverAddress;
 
   @override
   void initState() {
@@ -95,7 +94,6 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
     // 3. Embedded Local P2P Server Backup
     final serverStarted = await _p2pServer.start(roomId: widget.roomId);
     if (serverStarted) {
-      _serverAddress = '${_p2pServer.localIp}:${_p2pServer.port}';
       if (mounted) setState(() {});
 
       await _discoveryService.startAdvertising(

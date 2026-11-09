@@ -52,10 +52,10 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
         _isPaired = true;
         await _subscription?.cancel();
 
-        final cameraName = (data['name'] as String?)?.isNotEmpty == true
-            ? data['name'] as String
-            : _nameController.text.trim();
+        final String? rawName = data['name'] as String?;
+        final cameraName = (rawName != null && rawName.isNotEmpty) ? rawName : _nameController.text.trim();
 
+        if (!mounted) return;
         final messenger = ScaffoldMessenger.of(context);
         final nav = Navigator.of(context);
 

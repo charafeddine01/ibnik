@@ -52,22 +52,22 @@ class _HomeScreenState extends State<HomeScreen> {
     if (savedChannel == null) {
       // First time: Baby phone scans the QR code from Parent phone
       final nav = Navigator.of(context);
-      nav.push(
+      unawaited(nav.push(
         MaterialPageRoute<void>(builder: (_) => const BabyQrScannerScreen()),
-      ).then((_) => _loadPairedCameras());
+      ).then((_) => _loadPairedCameras()));
     } else {
       // Already paired: Start nursery camera immediately
       final name = await _registryService.getMyBabyName();
       if (!mounted) return;
       final nav = Navigator.of(context);
-      nav.push(
+      unawaited(nav.push(
         MaterialPageRoute<void>(
           builder: (_) => BabyUnitScreen(
             roomId: savedChannel,
             deviceName: name,
           ),
         ),
-      ).then((_) => _loadPairedCameras());
+      ).then((_) => _loadPairedCameras()));
     }
   }
 
@@ -343,9 +343,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: const Color(0xFF4F46E5),
                 onTap: () {
                   final nav = Navigator.of(context);
-                  nav.push(
+                  unawaited(nav.push(
                     MaterialPageRoute<void>(builder: (_) => const ParentPairingScreen()),
-                  ).then((_) => _loadPairedCameras());
+                  ).then((_) => _loadPairedCameras()));
                 },
               ),
 
