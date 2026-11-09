@@ -427,8 +427,5 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
         ),
       ),
     );
-        ],
-      ),
-    );
   }
 }

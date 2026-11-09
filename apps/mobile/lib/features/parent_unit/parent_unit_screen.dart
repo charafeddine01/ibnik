@@ -508,8 +508,5 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
         ),
       ),
     );
-        ],
-      ),
-    );
   }
 }
