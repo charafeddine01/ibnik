@@ -279,224 +279,235 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-      body: Stack(
-        children: [
-          // 1. Video Stream Player
-          Positioned.fill(
-            child: _isConnected
-                ? RTCVideoView(
-                    _webrtcService.remoteRenderer,
-                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                  )
-                : Container(
-                    color: const Color(0xFF0F172A),
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Stack(
+            children: [
+              // 1. Video Stream Player inside rounded frame (Prevent shift/notch jump)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: _isConnected
+                      ? RTCVideoView(
+                          _webrtcService.remoteRenderer,
+                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                        )
+                      : Container(
+                          color: const Color(0xFF0F172A),
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(
+                                  width: 50,
+                                  height: 50,
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF4F46E5),
+                                    strokeWidth: 3,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                Text(
+                                  _statusText,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  widget.isCloudCall
+                                      ? 'Streaming encrypted peer-to-peer over WebRTC.'
+                                      : 'Ensure both phones are on the same Wi-Fi network.',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4F46E5),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  icon: const Icon(Icons.refresh, color: Colors.white),
+                                  label: const Text('Retry Connection', style: TextStyle(color: Colors.white)),
+                                  onPressed: _onRetry,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+
+              // 2. Top Bar (Telemetries & Room Info)
+              Positioned(
+                top: 10,
+                left: 10,
+                right: 10,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      style: IconButton.styleFrom(backgroundColor: Colors.black45),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+
+                    // Connection & Room Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _isConnected ? Colors.green.withOpacity(0.85) : Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
                         children: [
-                          const SizedBox(
-                            width: 50,
-                            height: 50,
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF4F46E5),
-                              strokeWidth: 3,
-                            ),
+                          Icon(
+                            _isConnected ? Icons.cloud_done : Icons.cloud_outlined,
+                            color: Colors.white,
+                            size: 16,
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(width: 6),
                           Text(
-                            _statusText,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white, fontSize: 16),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            widget.isCloudCall
-                                ? 'Streaming encrypted peer-to-peer over WebRTC.'
-                                : 'Ensure both phones are on the same Wi-Fi network.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white54, fontSize: 13),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4F46E5),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            icon: const Icon(Icons.refresh, color: Colors.white),
-                            label: const Text('Retry Connection', style: TextStyle(color: Colors.white)),
-                            onPressed: _onRetry,
+                            _isConnected
+                                ? (widget.isCloudCall ? 'Live Cloud HD • ${widget.deviceName ?? "Baby"}' : 'Connected • Local P2P')
+                                : (widget.isCloudCall ? (widget.deviceName ?? 'Connecting...') : 'Room: ${widget.roomId}'),
+                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                     ),
-                  ),
-          ),
 
-          // 2. Top Bar (Telemetries & Room Info)
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    style: IconButton.styleFrom(backgroundColor: Colors.black45),
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-
-                  // Connection & Room Pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _isConnected ? Colors.green.withOpacity(0.85) : Colors.black54,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _isConnected ? Icons.cloud_done : Icons.cloud_outlined,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _isConnected
-                              ? (widget.isCloudCall ? 'Live Cloud HD • ${widget.deviceName ?? "Baby"}' : 'Connected • Local P2P')
-                              : (widget.isCloudCall ? (widget.deviceName ?? 'Connecting...') : 'Room: ${widget.roomId}'),
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Baby Battery Pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _babyIsCharging ? Icons.battery_charging_full : Icons.battery_std,
-                          color: _babyBattery < 20 ? Colors.redAccent : Colors.white,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$_babyBattery%',
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 3. Audio & Cry Decibel Meter
-          if (_isConnected)
-            Positioned(
-              top: 80,
-              left: 20,
-              right: 20,
-              child: DecibelMeter(currentDb: _babyDb),
-            ),
-
-          // 4. Remote Controls & Walkie-Talkie Button
-          Positioned(
-            bottom: 24,
-            left: 20,
-            right: 20,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top Secondary Controls
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.65),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          _babyTorchOn ? Icons.flash_on : Icons.flash_off,
-                          color: _babyTorchOn ? Colors.amber : Colors.white70,
-                        ),
-                        tooltip: 'Toggle Nursery Flashlight',
-                        onPressed: _toggleBabyTorch,
+                    // Baby Battery Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.flip_camera_ios, color: Colors.white70),
-                        tooltip: 'Flip Nursery Camera',
-                        onPressed: _flipBabyCamera,
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.music_note,
-                          color: _isLullabyPlaying ? const Color(0xFF818CF8) : Colors.white70,
-                        ),
-                        tooltip: 'Lullabies & White Noise',
-                        onPressed: _showLullabySheet,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Push-To-Talk Walkie-Talkie Button
-                GestureDetector(
-                  onTapDown: (_) => _onStartTalking(),
-                  onTapUp: (_) => _onStopTalking(),
-                  onTapCancel: () => _onStopTalking(),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: double.infinity,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: _isTalking ? Colors.redAccent : const Color(0xFF4F46E5),
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (_isTalking ? Colors.redAccent : const Color(0xFF4F46E5)).withOpacity(0.4),
-                          blurRadius: 16,
-                          spreadRadius: 2,
-                        )
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          _isTalking ? Icons.mic : Icons.mic_none,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _isTalking ? 'TALKING TO BABY... (RELEASE TO STOP)' : 'HOLD TO TALK TO BABY',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
+                      child: Row(
+                        children: [
+                          Icon(
+                            _babyIsCharging ? Icons.battery_charging_full : Icons.battery_std,
+                            color: _babyBattery < 20 ? Colors.redAccent : Colors.white,
+                            size: 16,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Text(
+                            '$_babyBattery%',
+                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+
+              // 3. Audio & Cry Decibel Meter
+              if (_isConnected)
+                Positioned(
+                  top: 70,
+                  left: 16,
+                  right: 16,
+                  child: DecibelMeter(currentDb: _babyDb),
+                ),
+
+              // 4. Remote Controls & Walkie-Talkie Button
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Top Secondary Controls
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.65),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              _babyTorchOn ? Icons.flash_on : Icons.flash_off,
+                              color: _babyTorchOn ? Colors.amber : Colors.white70,
+                            ),
+                            tooltip: 'Toggle Nursery Flashlight',
+                            onPressed: _toggleBabyTorch,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.flip_camera_ios, color: Colors.white70),
+                            tooltip: 'Flip Nursery Camera',
+                            onPressed: _flipBabyCamera,
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.music_note,
+                              color: _isLullabyPlaying ? const Color(0xFF818CF8) : Colors.white70,
+                            ),
+                            tooltip: 'Lullabies & White Noise',
+                            onPressed: _showLullabySheet,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Push-To-Talk Walkie-Talkie Button
+                    GestureDetector(
+                      onTapDown: (_) => _onStartTalking(),
+                      onTapUp: (_) => _onStopTalking(),
+                      onTapCancel: () => _onStopTalking(),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: double.infinity,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: _isTalking ? Colors.redAccent : const Color(0xFF4F46E5),
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_isTalking ? Colors.redAccent : const Color(0xFF4F46E5)).withOpacity(0.4),
+                              blurRadius: 16,
+                              spreadRadius: 2,
+                            )
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _isTalking ? Icons.mic : Icons.mic_none,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isTalking ? 'TALKING TO BABY... (RELEASE TO STOP)' : 'HOLD TO TALK TO BABY',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
         ],
       ),
     );

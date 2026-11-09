@@ -42,6 +42,7 @@ build/
 **/android/GeneratedPluginRegistrant.java
 **/android/app/build/
 **/android/key.properties
+releases/
 *.jks
 *.keystore
 

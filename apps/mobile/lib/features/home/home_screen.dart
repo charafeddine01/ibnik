@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/models/peer_role.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/device_registry_service.dart';
 import '../auth/login_screen.dart';
 import '../baby_unit/baby_unit_screen.dart';
+import '../pairing/baby_qr_scanner_screen.dart';
+import '../pairing/parent_pairing_screen.dart';
 import '../pairing/pairing_screen.dart';
 import '../parent_unit/parent_unit_screen.dart';
 
@@ -17,6 +20,24 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   final DeviceRegistryService _registryService = DeviceRegistryService();
+  List<Map<String, String>> _pairedCameras = [];
+  bool _isLoadingCameras = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPairedCameras();
+  }
+
+  Future<void> _loadPairedCameras() async {
+    final list = await _registryService.getPairedCamerasLocal();
+    if (mounted) {
+      setState(() {
+        _pairedCameras = list;
+        _isLoadingCameras = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -24,63 +45,30 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _showSetupBabyDialog(String userId) {
-    final controller = TextEditingController(text: 'Nursery Camera');
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Set Up Baby Camera', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Give this nursery camera a name. It will be linked to your account forever.',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'e.g. Baby Room, Nursery, Crib',
-                hintStyle: const TextStyle(color: Colors.white38),
-                filled: true,
-                fillColor: const Color(0xFF0F172A),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-          ],
+  void _onStartBabyUnit() async {
+    final savedChannel = await _registryService.getMyBabyChannel();
+    if (!mounted) return;
+
+    if (savedChannel == null) {
+      // First time: Baby phone scans the QR code from Parent phone
+      final nav = Navigator.of(context);
+      nav.push(
+        MaterialPageRoute<void>(builder: (_) => const BabyQrScannerScreen()),
+      ).then((_) => _loadPairedCameras());
+    } else {
+      // Already paired: Start nursery camera immediately
+      final name = await _registryService.getMyBabyName();
+      if (!mounted) return;
+      final nav = Navigator.of(context);
+      nav.push(
+        MaterialPageRoute<void>(
+          builder: (_) => BabyUnitScreen(
+            roomId: savedChannel,
+            deviceName: name,
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
-            onPressed: () {
-              final name = controller.text.trim().isEmpty ? 'Nursery Camera' : controller.text.trim();
-              Navigator.pop(ctx);
-              const deviceId = 'baby_camera_1';
-              final callId = '${userId}_$deviceId';
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => BabyUnitScreen(
-                    roomId: callId,
-                    userId: userId,
-                    deviceId: deviceId,
-                    deviceName: name,
-                  ),
-                ),
-              );
-            },
-            child: const Text('Start Camera', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+      ).then((_) => _loadPairedCameras());
+    }
   }
 
   @override
@@ -119,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
                           ),
                           Text(
-                            user?.email ?? 'Logged In',
+                            user?.email ?? 'Free Baby Monitor',
                             style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                           ),
                         ],
@@ -127,21 +115,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
 
-                  // Sign Out Button
-                  IconButton(
-                    style: IconButton.styleFrom(backgroundColor: Colors.white10),
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white70, size: 20),
-                    tooltip: 'Sign Out',
-                    onPressed: () async {
-                      final nav = Navigator.of(context);
-                      await _authService.signOut();
-                      if (mounted) {
-                        nav.pushReplacement(
-                          MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
-                        );
-                      }
-                    },
-                  ),
+                  // Sign Out Button (if logged in)
+                  if (user != null)
+                    IconButton(
+                      style: IconButton.styleFrom(backgroundColor: Colors.white10),
+                      icon: const Icon(Icons.logout_rounded, color: Colors.white70, size: 20),
+                      tooltip: 'Sign Out',
+                      onPressed: () async {
+                        final nav = Navigator.of(context);
+                        await _authService.signOut();
+                        if (mounted) {
+                          nav.pushReplacement(
+                            MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+                          );
+                        }
+                      },
+                    ),
                 ],
               ),
 
@@ -184,59 +173,60 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 32),
 
-              // Paired Baby Cameras Section (The "Add Baby Forever" Feature)
-              if (user != null) ...[
-                const Text(
-                  'Paired Baby Cameras',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Your permanently linked nursery cameras. Connect anytime from any network.',
-                  style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                ),
-                const SizedBox(height: 16),
+              // Paired Baby Cameras Section (Permanent Pairing)
+              const Text(
+                'Paired Baby Cameras',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Your permanently linked nursery cameras. Connect anytime from any network.',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              ),
+              const SizedBox(height: 16),
 
-                StreamBuilder<List<BabyDevice>>(
-                  stream: _registryService.watchPairedBabyDevices(user.uid),
-                  builder: (context, snapshot) {
-                    final devices = snapshot.data ?? [];
-
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(color: Color(0xFF4F46E5), strokeWidth: 2),
+              if (_isLoadingCameras)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: Color(0xFF4F46E5), strokeWidth: 2),
+                  ),
+                )
+              else if (_pairedCameras.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B).withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.qr_code_scanner, color: Color(0xFF818CF8), size: 24),
+                      SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          'No cameras paired yet. Tap "Pair Baby Camera (Show QR)" below, then scan with your baby phone.',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
                         ),
-                      );
-                    }
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Column(
+                  children: _pairedCameras.map((camera) {
+                    final channelId = camera['id']!;
+                    final fallbackName = camera['name'] ?? 'Nursery Camera';
 
-                    if (devices.isEmpty) {
-                      return Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B).withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.info_outline, color: Colors.white38, size: 22),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'No baby cameras paired yet. Tap "Baby Unit" below on your second phone to add it permanently.',
-                                style: TextStyle(color: Colors.white60, fontSize: 13),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+                    return StreamBuilder<BabyDevice?>(
+                      stream: _registryService.watchChannel(channelId),
+                      builder: (context, snapshot) {
+                        final device = snapshot.data;
+                        final isOnline = device?.isOnline ?? false;
+                        final battery = device?.batteryLevel ?? 100;
+                        final displayName = device?.name ?? fallbackName;
 
-                    return Column(
-                      children: devices.map((device) {
-                        final callId = '${user.uid}_${device.id}';
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(16),
@@ -244,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: const Color(0xFF1E293B),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: device.isOnline ? Colors.green.withOpacity(0.4) : Colors.white12,
+                              color: isOnline ? Colors.green.withOpacity(0.4) : Colors.white12,
                               width: 1.5,
                             ),
                           ),
@@ -253,12 +243,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: (device.isOnline ? Colors.green : Colors.grey).withOpacity(0.15),
+                                  color: (isOnline ? Colors.green : Colors.grey).withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
                                   Icons.child_care_rounded,
-                                  color: device.isOnline ? Colors.greenAccent : Colors.white38,
+                                  color: isOnline ? Colors.greenAccent : Colors.white38,
                                   size: 26,
                                 ),
                               ),
@@ -268,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      device.name,
+                                      displayName,
                                       style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                                     ),
                                     const SizedBox(height: 4),
@@ -278,15 +268,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                           width: 8,
                                           height: 8,
                                           decoration: BoxDecoration(
-                                            color: device.isOnline ? Colors.greenAccent : Colors.grey,
+                                            color: isOnline ? Colors.greenAccent : Colors.grey,
                                             shape: BoxShape.circle,
                                           ),
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          device.isOnline ? 'Online • ${device.batteryLevel}%' : 'Offline',
+                                          isOnline ? 'Online • $battery%' : 'Offline',
                                           style: TextStyle(
-                                            color: device.isOnline ? Colors.greenAccent : Colors.white38,
+                                            color: isOnline ? Colors.greenAccent : Colors.white38,
                                             fontSize: 12,
                                           ),
                                         ),
@@ -305,8 +295,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Navigator.of(context).push(
                                     MaterialPageRoute<void>(
                                       builder: (_) => ParentUnitScreen(
-                                        roomId: callId,
-                                        deviceName: device.name,
+                                        roomId: channelId,
+                                        deviceName: displayName,
                                         isCloudCall: true,
                                       ),
                                     ),
@@ -314,54 +304,71 @@ class _HomeScreenState extends State<HomeScreen> {
                                 },
                                 child: const Text('Connect', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                               ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 20),
+                                tooltip: 'Unpair Camera',
+                                onPressed: () async {
+                                  await _registryService.removePairedCameraLocal(channelId);
+                                  _loadPairedCameras();
+                                },
+                              ),
                             ],
                           ),
                         );
-                      }).toList(),
+                      },
                     );
-                  },
+                  }).toList(),
                 ),
-              ],
 
               const SizedBox(height: 36),
 
               const Text(
-                'Add Or Set Up Device',
+                'Set Up Devices',
                 style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               const Text(
-                'Configure this device as a nursery camera or pair a new monitor.',
+                'Pair a new baby camera or configure this phone as the nursery unit.',
                 style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
               ),
               const SizedBox(height: 18),
 
-              // 1. Baby Unit Card
+              // 1. Pair Baby Camera (Show QR on Parent Phone)
               _buildRoleCard(
                 context,
-                title: 'Baby Unit (Nursery Camera)',
-                subtitle: 'Streams HD video & audio, monitors sound/cries, and plays lullabies.',
-                icon: Icons.videocam_rounded,
+                title: 'Pair Baby Camera (Show QR)',
+                subtitle: 'Display pairing QR code for the baby phone to scan and link forever.',
+                icon: Icons.qr_code_2_rounded,
                 color: const Color(0xFF4F46E5),
                 onTap: () {
-                  if (user != null) {
-                    _showSetupBabyDialog(user.uid);
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => const PairingScreen(role: PeerRole.baby)),
-                    );
-                  }
+                  final nav = Navigator.of(context);
+                  nav.push(
+                    MaterialPageRoute<void>(builder: (_) => const ParentPairingScreen()),
+                  ).then((_) => _loadPairedCameras());
                 },
               ),
 
               const SizedBox(height: 16),
 
-              // 2. Local Wi-Fi Pairing (Optional direct fallback)
+              // 2. Baby Unit (Nursery Camera)
               _buildRoleCard(
                 context,
-                title: 'Pair via QR / Local Wi-Fi',
-                subtitle: 'Direct local pairing without cloud accounts.',
-                icon: Icons.qr_code_scanner_rounded,
+                title: 'Baby Unit (Nursery Camera)',
+                subtitle: 'Streams HD video & audio, detects sound/cries, and plays lullabies.',
+                icon: Icons.videocam_rounded,
+                color: const Color(0xFF10B981),
+                onTap: _onStartBabyUnit,
+              ),
+
+              const SizedBox(height: 16),
+
+              // 3. Local Wi-Fi Pairing (Direct offline LAN fallback)
+              _buildRoleCard(
+                context,
+                title: 'Local Wi-Fi Mode (Offline)',
+                subtitle: 'Direct local pairing without cloud servers.',
+                icon: Icons.wifi_rounded,
                 color: const Color(0xFF06B6D4),
                 onTap: () {
                   Navigator.of(context).push(
@@ -402,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFF1E293B),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+          border: Border.all(color: color.withOpacity(0.35), width: 1.5),
         ),
         child: Row(
           children: [
@@ -419,14 +426,27 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12, height: 1.4)),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12,
+                      height: 1.3,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(Icons.chevron_right_rounded, color: color, size: 22),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white38),
           ],
         ),
       ),
