@@ -49,8 +49,8 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
           request.response
             ..statusCode = HttpStatus.ok
             ..headers.contentType = ContentType.json
-            ..write(jsonEncode({'status': 'ok'}))
-            ..close();
+            ..write(jsonEncode({'status': 'ok'}));
+          await request.response.close();
 
           debugPrint('Local HTTP pairing signal received for channel: $qChannel');
           await _onDevicePaired(qChannel, qName);
@@ -101,38 +101,38 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
       await _localPairingServer?.close(force: true);
     } catch (_) {}
 
-    final messenger = ScaffoldMessenger.of(context);
-    final nav = Navigator.of(context);
-
     await _registryService.savePairedCameraLocal(
       channelId: channelId,
       name: cameraName,
     );
 
-    if (mounted) {
-      messenger.showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.green[800],
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(child: Text('Paired with $cameraName successfully!')),
-            ],
-          ),
-        ),
-      );
+    if (!mounted) return;
 
-      unawaited(nav.pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => ParentUnitScreen(
-            roomId: channelId,
-            deviceName: cameraName,
-            isCloudCall: true,
-          ),
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+
+    messenger.showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.green[800],
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Paired with $cameraName successfully!')),
+          ],
         ),
-      ));
-    }
+      ),
+    );
+
+    unawaited(nav.pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => ParentUnitScreen(
+          roomId: channelId,
+          deviceName: cameraName,
+          isCloudCall: true,
+        ),
+      ),
+    ));
   }
 
   @override
