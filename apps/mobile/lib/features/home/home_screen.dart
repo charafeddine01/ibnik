@@ -26,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPairedCameras();
+    unawaited(_loadPairedCameras());
   }
 
   Future<void> _loadPairedCameras() async {
@@ -45,29 +45,41 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _onStartBabyUnit() async {
+  Future<void> _onStartBabyUnit() async {
     final savedChannel = await _registryService.getMyBabyChannel();
     if (!mounted) return;
 
     if (savedChannel == null) {
       // First time: Baby phone scans the QR code from Parent phone
       final nav = Navigator.of(context);
-      unawaited(nav.push(
-        MaterialPageRoute<void>(builder: (_) => const BabyQrScannerScreen()),
-      ).then((_) => _loadPairedCameras()));
+      unawaited(
+        nav
+            .push(
+              MaterialPageRoute<void>(builder: (_) => const BabyQrScannerScreen()),
+            )
+            .then((_) {
+              unawaited(_loadPairedCameras());
+            }),
+      );
     } else {
       // Already paired: Start nursery camera immediately
       final name = await _registryService.getMyBabyName();
       if (!mounted) return;
       final nav = Navigator.of(context);
-      unawaited(nav.push(
-        MaterialPageRoute<void>(
-          builder: (_) => BabyUnitScreen(
-            roomId: savedChannel,
-            deviceName: name,
-          ),
-        ),
-      ).then((_) => _loadPairedCameras()));
+      unawaited(
+        nav
+            .push(
+              MaterialPageRoute<void>(
+                builder: (_) => BabyUnitScreen(
+                  roomId: savedChannel,
+                  deviceName: name,
+                ),
+              ),
+            )
+            .then((_) {
+              unawaited(_loadPairedCameras());
+            }),
+      );
     }
   }
 
@@ -125,9 +137,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         final nav = Navigator.of(context);
                         await _authService.signOut();
                         if (mounted) {
-                          nav.pushReplacement(
+                          unawaited(nav.pushReplacement(
                             MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
-                          );
+                          ));
                         }
                       },
                     ),
@@ -310,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 tooltip: 'Unpair Camera',
                                 onPressed: () async {
                                   await _registryService.removePairedCameraLocal(channelId);
-                                  _loadPairedCameras();
+                                  await _loadPairedCameras();
                                 },
                               ),
                             ],
@@ -343,9 +355,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: const Color(0xFF4F46E5),
                 onTap: () {
                   final nav = Navigator.of(context);
-                  unawaited(nav.push(
-                    MaterialPageRoute<void>(builder: (_) => const ParentPairingScreen()),
-                  ).then((_) => _loadPairedCameras()));
+                  unawaited(
+                    nav
+                        .push(
+                          MaterialPageRoute<void>(builder: (_) => const ParentPairingScreen()),
+                        )
+                        .then((_) {
+                          unawaited(_loadPairedCameras());
+                        }),
+                  );
                 },
               ),
 
@@ -358,7 +376,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 subtitle: 'Streams HD video & audio, detects sound/cries, and plays lullabies.',
                 icon: Icons.videocam_rounded,
                 color: const Color(0xFF10B981),
-                onTap: _onStartBabyUnit,
+                onTap: () {
+                  unawaited(_onStartBabyUnit());
+                },
               ),
 
               const SizedBox(height: 16),
