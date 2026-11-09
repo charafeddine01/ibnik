@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../core/models/peer_role.dart';
 import '../../core/services/auth_service.dart';
@@ -288,16 +289,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.green.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Container(
                                   width: 8,
                                   height: 8,
-                                  decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle),
+                                  decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
                                 ),
-                                SizedBox(width: 6),
-                                Text('Standby', style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 6),
+                                const Text('Standby', style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),

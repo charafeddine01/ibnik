@@ -162,12 +162,6 @@ class WebRTCService {
       if (event.streams.isNotEmpty) {
         remoteStream = event.streams[0];
         remoteRenderer.srcObject = remoteStream;
-      } else {
-        remoteStream ??= MediaStream('remote_stream', 'remote_stream');
-        remoteStream!.addTrack(event.track);
-        if (event.track.kind == 'video') {
-          remoteRenderer.srcObject = remoteStream;
-        }
       }
     };
 
