@@ -128,6 +128,9 @@ class DeviceRegistryService {
     return _channelsRef().doc(channelId).snapshots().map((snapshot) {
       if (!snapshot.exists) return null;
       return BabyDevice.fromFirestore(snapshot);
+    }).handleError((Object e) {
+      debugPrint('watchChannel error notice: $e');
+      return null;
     });
   }
 

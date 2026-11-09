@@ -102,74 +102,79 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
       }
     };
 
-    if (widget.isCloudCall) {
-      // 3a. Cloud WebRTC Call over Firestore
+    // Setup Local P2P Client (Direct LAN / Wi-Fi)
+    _p2pClient.onDiscoveryProgress = (status) {
+      if (mounted && !_isConnected) {
+        setState(() => _statusText = status);
+      }
+    };
+
+    _p2pClient.onConnected = () {
+      debugPrint('ParentUnit: Connected to Baby Unit via local Wi-Fi');
+    };
+
+    _p2pClient.onMessageReceived = (msg) async {
+      debugPrint('ParentUnit: Received local signaling message: ${msg.type}');
+      if (msg.type == 'offer') {
+        await _webrtcService.createPeerConnectionInstance(
+          roomId: widget.roomId,
+          myPeerId: 'parent',
+          targetPeerId: 'baby',
+          isBabyUnit: false,
+        );
+
+        _webrtcService.onSignalingMessage = (outMsg) {
+          _p2pClient.sendMessage(outMsg);
+        };
+
+        await _webrtcService.handleOfferAndSendAnswer(
+          offerMsg: msg,
+          myPeerId: 'parent',
+        );
+      } else if (msg.type == 'candidate') {
+        await _webrtcService.addCandidate(msg);
+      }
+    };
+
+    _p2pClient.onDisconnected = () {
+      if (mounted && !_isConnected) {
+        setState(() {
+          _isConnected = false;
+          _statusText = 'Disconnected from Baby Unit';
+        });
+      }
+    };
+
+    // Attempt Hybrid Connection (Local Wi-Fi + Cloud Signaling concurrently)
+    unawaited(_connectHybrid());
+  }
+
+  Future<void> _connectHybrid() async {
+    setState(() => _statusText = 'Connecting to ${widget.deviceName ?? "Baby Unit"}...');
+
+    // 1. Always attempt local Wi-Fi discovery & direct connection (fastest!)
+    unawaited(_connectLocal());
+
+    // 2. Concurrently attempt cloud signaling over Firestore if available
+    if (widget.isCloudCall && _firestoreSignaling.isFirebaseAvailable) {
       unawaited(_connectCloud());
-    } else {
-      // 3b. Setup Local P2P Client (Direct LAN / Wi-Fi)
-      _p2pClient.onDiscoveryProgress = (status) {
-        if (mounted) {
-          setState(() => _statusText = status);
-        }
-      };
-
-      _p2pClient.onConnected = () {
-        if (mounted) {
-          setState(() => _statusText = 'Connected to Baby Unit socket');
-        }
-      };
-
-      _p2pClient.onMessageReceived = (msg) async {
-        debugPrint('ParentUnit: Received signaling message: ${msg.type}');
-        if (msg.type == 'offer') {
-          await _webrtcService.createPeerConnectionInstance(
-            roomId: widget.roomId,
-            myPeerId: 'parent',
-            targetPeerId: 'baby',
-            isBabyUnit: false,
-          );
-
-          _webrtcService.onSignalingMessage = (outMsg) {
-            _p2pClient.sendMessage(outMsg);
-          };
-
-          await _webrtcService.handleOfferAndSendAnswer(
-            offerMsg: msg,
-            myPeerId: 'parent',
-          );
-        } else if (msg.type == 'candidate') {
-          await _webrtcService.addCandidate(msg);
-        }
-      };
-
-      _p2pClient.onDisconnected = () {
-        if (mounted) {
-          setState(() {
-            _isConnected = false;
-            _statusText = 'Disconnected from Baby Unit';
-          });
-        }
-      };
-
-      unawaited(_connectLocal());
     }
   }
 
   Future<void> _connectCloud() async {
-    setState(() => _statusText = 'Connecting to ${widget.deviceName ?? "Baby Unit"} over cloud WebRTC...');
     try {
       await _firestoreSignaling.callBabyUnit(
         callId: widget.roomId,
         webrtcService: _webrtcService,
         onStatusChanged: (status) {
-          if (mounted) setState(() => _statusText = status);
+          if (mounted && !_isConnected) setState(() => _statusText = status);
         },
         onConnected: () {
           debugPrint('ParentUnit: Cloud WebRTC stream fully connected!');
           if (mounted) {
             setState(() {
               _isConnected = true;
-              _statusText = 'Connected';
+              _statusText = 'Connected (Cloud)';
             });
           }
         },
@@ -184,12 +189,14 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
         },
       );
     } catch (e) {
-      debugPrint('ParentUnit: Cloud connection error: $e');
-      if (mounted) {
-        setState(() {
-          _isConnected = false;
-          _statusText = 'Failed to connect. Tap retry below.';
-        });
+      debugPrint('ParentUnit: Cloud connection notice: $e');
+      if (mounted && !_isConnected) {
+        final errStr = e.toString().toLowerCase();
+        if (errStr.contains('permission-denied') || errStr.contains('disabled')) {
+          setState(() {
+            _statusText = 'Scanning local Wi-Fi for nursery camera...';
+          });
+        }
       }
     }
   }
@@ -212,11 +219,7 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
   }
 
   void _onRetry() {
-    if (widget.isCloudCall) {
-      unawaited(_connectCloud());
-    } else {
-      unawaited(_connectLocal());
-    }
+    unawaited(_connectHybrid());
   }
 
   void _onStartTalking() {
