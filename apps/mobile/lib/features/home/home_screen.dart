@@ -292,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 ),
                                 onPressed: () {
-                                  Navigator.of(context).push(
+                                  unawaited(Navigator.of(context).push(
                                     MaterialPageRoute<void>(
                                       builder: (_) => ParentUnitScreen(
                                         roomId: channelId,
@@ -300,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         isCloudCall: true,
                                       ),
                                     ),
-                                  );
+                                  ));
                                 },
                                 child: const Text('Connect', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                               ),
@@ -371,9 +371,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icons.wifi_rounded,
                 color: const Color(0xFF06B6D4),
                 onTap: () {
-                  Navigator.of(context).push(
+                  unawaited(Navigator.of(context).push(
                     MaterialPageRoute<void>(builder: (_) => const PairingScreen(role: PeerRole.parent)),
-                  );
+                  ));
                 },
               ),
 

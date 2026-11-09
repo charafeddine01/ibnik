@@ -79,14 +79,14 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
             ),
           );
 
-          nav.pushReplacement(
+          unawaited(nav.pushReplacement(
             MaterialPageRoute<void>(
               builder: (_) => BabyUnitScreen(
                 roomId: channelId,
                 deviceName: cameraName,
               ),
             ),
-          );
+          ));
         }
         break;
       }

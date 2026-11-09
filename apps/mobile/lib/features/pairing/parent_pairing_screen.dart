@@ -44,15 +44,16 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
 
     _subscription = docRef.snapshots().listen((snapshot) async {
       if (!snapshot.exists) return;
-      final data = snapshot.data() as Map<String, dynamic>? ?? {};
-      final paired = data['is_paired'] as bool? ?? false;
-      final online = data['is_online'] as bool? ?? false;
+      final data = snapshot.data();
+      if (data == null) return;
+      final paired = data['is_paired'] == true;
+      final online = data['is_online'] == true;
 
       if ((paired || online) && !_isPaired && mounted) {
         _isPaired = true;
         await _subscription?.cancel();
 
-        final String? rawName = data['name'] as String?;
+        final rawName = data['name']?.toString();
         final cameraName = (rawName != null && rawName.isNotEmpty) ? rawName : _nameController.text.trim();
 
         if (!mounted) return;
@@ -78,7 +79,7 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
             ),
           );
 
-          nav.pushReplacement(
+          unawaited(nav.pushReplacement(
             MaterialPageRoute<void>(
               builder: (_) => ParentUnitScreen(
                 roomId: _channelId,
@@ -86,7 +87,7 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
                 isCloudCall: true,
               ),
             ),
-          );
+          ));
         }
       }
     });
