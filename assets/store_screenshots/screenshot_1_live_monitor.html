@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1080px;
+    height: 1920px;
+    background: radial-gradient(circle at 50% 15%, #1e1b4b 0%, #0f172a 50%, #020617 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #f8fafc;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 55px;
+  }
+
+  /* Top Marketing Header */
+  .header-zone {
+    text-align: center;
+    margin-bottom: 40px;
+    z-index: 10;
+    max-width: 960px;
+  }
+  .badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    background: rgba(99, 102, 241, 0.18);
+    border: 1px solid rgba(129, 140, 248, 0.35);
+    border-radius: 999px;
+    font-size: 19px;
+    font-weight: 700;
+    color: #a5b4fc;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+  .main-title {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1.15;
+    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+  .main-subtitle {
+    font-size: 26px;
+    font-weight: 500;
+    color: #94a3b8;
+    line-height: 1.35;
+  }
+
+  /* Phone Mockup Frame */
+  .phone-frame {
+    width: 820px;
+    height: 1580px;
+    background: #0b0f19;
+    border-radius: 54px;
+    border: 9px solid #334155;
+    box-shadow: 0 35px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Phone Status Bar */
+  .status-bar {
+    height: 52px;
+    padding: 0 34px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 19px;
+    font-weight: 600;
+    color: #cbd5e1;
+    z-index: 20;
+    background: transparent;
+  }
+  .notch-pill {
+    width: 140px;
+    height: 28px;
+    background: #020617;
+    border-radius: 14px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 12px;
+  }
+  .status-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* In-App Content Area */
+  .app-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    padding: 12px 24px 24px;
+  }
+
+  /* Reusable App Components */
+  .app-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0 18px;
+  }
+  .brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #4f46e5, #06b6d4);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+  .brand-text {
+    font-size: 28px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+  }
+  .user-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+    font-size: 15px;
+    color: #cbd5e1;
+  }
+  .user-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #4f46e5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 22px;
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="header-zone">
+    <div class="badge-pill">Parent Unit • Ultra Low Latency</div>
+    <div class="main-title">Live HD Video & Sound Monitor</div>
+    <div class="main-subtitle">Crystal-clear real-time stream with smart cry alerts & battery telemetry</div>
+  </div>
+
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span>09:41</span>
+      <div class="notch-pill"></div>
+      <div class="status-right">
+        <span>5G</span>
+        <span>100%</span>
+      </div>
+    </div>
+    <div class="app-screen">
+      
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="width:38px; height:38px; border-radius:12px; background:#1e293b; display:flex; align-items:center; justify-content:center; border:1px solid #334155;">
+          ‹
+        </div>
+        <div>
+          <div style="font-size:22px; font-weight:700;">Nursery Camera (Crib)</div>
+          <div style="font-size:14px; color:#10b981; display:flex; align-items:center; gap:6px;">
+            <span style="width:8px; height:8px; border-radius:50%; background:#10b981; display:inline-block;"></span>
+            Live (P2P Encrypted) • 30 fps
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; background:#0f172a; padding:6px 14px; border-radius:20px; border:1px solid #334155; font-size:15px; font-weight:600; color:#38bdf8;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM11 20v-5.5H9L13 7v5.5h2L11 20z"/></svg> 94% Charging
+      </div>
+    </div>
+
+    <!-- Live Video Viewport -->
+    <div style="flex:1; border-radius:26px; overflow:hidden; position:relative; background:radial-gradient(circle at 50% 50%, #1e293b 0%, #090d16 100%); border:1px solid #334155; display:flex; flex-direction:column; justify-content:space-between; padding:22px;">
+      <!-- Baby Illustration Simulation inside Camera -->
+      <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; opacity:0.85;">
+        <svg width="400" height="400" viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="100" r="85" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+          <!-- Crib & Baby sleeping silhouette -->
+          <ellipse cx="100" cy="115" rx="55" ry="35" fill="#38bdf8" fill-opacity="0.2"/>
+          <circle cx="100" cy="90" r="28" fill="#cbd5e1" fill-opacity="0.8"/>
+          <!-- Sleepy eyes -->
+          <path d="M88 92 Q93 96 98 92" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M102 92 Q107 96 112 92" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Blanket -->
+          <path d="M60 110 Q100 135 140 110 L140 145 Q100 160 60 145 Z" fill="#6366f1" fill-opacity="0.45"/>
+          <text x="100" y="172" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600">INFANT SLEEPING PEACEFULLY</text>
+        </svg>
+      </div>
+
+      <!-- Top Overlay Overlay Pills -->
+      <div style="display:flex; justify-content:space-between; z-index:5;">
+        <div style="background:rgba(15, 23, 42, 0.75); backdrop-filter:blur(8px); padding:8px 16px; border-radius:14px; border:1px solid rgba(255,255,255,0.1); font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px;">
+          <span style="color:#ef4444;">● REC</span> HD 1080p
+        </div>
+        <div style="background:rgba(15, 23, 42, 0.75); backdrop-filter:blur(8px); padding:8px 16px; border-radius:14px; border:1px solid rgba(255,255,255,0.1); font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v3h10V2H7zm0 5v2.22l2 2V22h6v-10.78l2-2V7H7z"/></svg> Flashlight Off
+        </div>
+      </div>
+
+      <!-- Live Sound Level Meter (Cry Detection) -->
+      <div style="background:rgba(15, 23, 42, 0.85); backdrop-filter:blur(10px); border-radius:20px; padding:18px 22px; border:1px solid rgba(255,255,255,0.12); z-index:5;">
+        <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; margin-bottom:10px;">
+          <span style="color:#10b981; display:flex; align-items:center; gap:6px;">
+            <span style="width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
+            Audio Monitor: Normal (Quiet)
+          </span>
+          <span style="color:#94a3b8;">18 dB</span>
+        </div>
+        <div style="height:12px; background:#334155; border-radius:6px; overflow:hidden; display:flex; gap:3px; padding:2px;">
+          <div style="width:25%; background:#10b981; border-radius:4px;"></div>
+          <div style="width:15%; background:#10b981; border-radius:4px;"></div>
+          <div style="width:10%; background:#34d399; border-radius:4px;"></div>
+          <div style="flex:1; background:transparent;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Controls -->
+    <div style="margin-top:16px; display:flex; gap:14px;">
+      <div style="flex:1; background:#4f46e5; border-radius:22px; padding:20px; display:flex; align-items:center; justify-content:center; gap:12px; font-size:18px; font-weight:700; color:white; box-shadow:0 10px 25px rgba(79, 70, 229, 0.4);">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg> Hold to Talk (Walkie-Talkie)
+      </div>
+      <div style="width:72px; height:72px; background:#1e293b; border:1px solid #334155; border-radius:22px; display:flex; align-items:center; justify-content:center; color:#38bdf8;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+      </div>
+    </div>
+    
+    </div>
+  </div>
+</body>
+</html>
