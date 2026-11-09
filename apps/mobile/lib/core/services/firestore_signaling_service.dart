@@ -37,21 +37,21 @@ class FirestoreSignalingService {
 
     // Check if Parent has already initiated a call before wiping state
     try {
-      final doc = await _callRef(callId).get();
+      final doc = await _callRef(callId).get().timeout(const Duration(seconds: 3));
       final status = (doc.data() as Map<String, dynamic>?)?['status'];
       if (status != 'calling') {
         await cleanCall(callId);
         await _callRef(callId).set({
           'status': 'idle',
           'created_at': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        }, SetOptions(merge: true)).timeout(const Duration(seconds: 3));
       }
     } catch (_) {
       try {
         await _callRef(callId).set({
           'status': 'idle',
           'created_at': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        }, SetOptions(merge: true)).timeout(const Duration(seconds: 3));
       } catch (_) {}
     }
 
@@ -189,11 +189,16 @@ class FirestoreSignalingService {
       isBabyUnit: false,
     );
 
-    // Write "calling" status into call document
-    await _callRef(callId).set({
-      'status': 'calling',
-      'created_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    // Write "calling" status into call document (with 4-second timeout)
+    try {
+      await _callRef(callId).set({
+        'status': 'calling',
+        'created_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)).timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('Firestore set call error: $e');
+      rethrow;
+    }
 
     // Periodic heartbeat to re-assert "calling" status until Baby Unit responds
     _retryTimer?.cancel();

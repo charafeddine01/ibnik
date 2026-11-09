@@ -390,6 +390,27 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
                 ),
               ),
 
+              // Connection Info Chip (PIN & Wi-Fi IP for direct pairing)
+              Positioned(
+                bottom: 84,
+                left: 16,
+                right: 16,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Text(
+                      'PIN: ${widget.roomId}${_p2pServer.localIp != null ? " • Wi-Fi IP: ${_p2pServer.localIp}:8888" : ""}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ),
+
               // 3. Quick Action Controls (Flashlight, Flip, Re-pair QR, Dim Mode)
               Positioned(
                 bottom: 16,

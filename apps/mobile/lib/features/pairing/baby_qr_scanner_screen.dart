@@ -35,41 +35,99 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
       final raw = barcode.rawValue;
       if (raw == null || raw.isEmpty) continue;
 
-      String channelId = raw;
+      String channelId = raw.trim();
       String cameraName = 'Nursery Camera';
       String targetIp = '';
       int targetPort = 8899;
 
       try {
         final data = jsonDecode(raw) as Map<String, dynamic>;
-        if (data.containsKey('channel_id')) {
-          channelId = data['channel_id'] as String;
-          if (data.containsKey('name')) {
-            cameraName = data['name'] as String;
-          }
-          if (data.containsKey('ip') && data['ip'] is String) {
-            targetIp = data['ip'] as String;
-          }
-          if (data.containsKey('port') && data['port'] is num) {
-            targetPort = (data['port'] as num).toInt();
-          }
+        if (data.containsKey('pin')) {
+          channelId = data['pin'].toString();
+        } else if (data.containsKey('channel_id')) {
+          channelId = data['channel_id'].toString();
+        } else if (data.containsKey('room_id')) {
+          channelId = data['room_id'].toString();
+        }
+        if (data.containsKey('name')) {
+          cameraName = data['name'].toString();
+        }
+        if (data.containsKey('ip') && data['ip'] is String) {
+          targetIp = data['ip'] as String;
+        }
+        if (data.containsKey('port') && data['port'] is num) {
+          targetPort = (data['port'] as num).toInt();
         }
       } catch (_) {
-        // Raw channelId string fallback
+        // Raw channelId / PIN string fallback
       }
 
       if (channelId.isNotEmpty) {
         _hasScanned = true;
-        setState(() {}); // Triggers the "Verifying QR..." loading screen
+        setState(() {});
 
-        // Schedule async pairing on the next frame so CameraX onDetect returns immediately
-        // without deadlocking the Android camera analyzer thread.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           unawaited(_completePairing(channelId, cameraName, targetIp, targetPort));
         });
         break;
       }
     }
+  }
+
+  void _showManualPinDialog() {
+    final pinController = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Enter 6-Digit PIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter the PIN code displayed on the Parent Phone screen:',
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: pinController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 4, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              maxLength: 6,
+              decoration: InputDecoration(
+                hintText: '123456',
+                hintStyle: const TextStyle(color: Colors.white24),
+                filled: true,
+                fillColor: const Color(0xFF0F172A),
+                counterText: '',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
+            onPressed: () {
+              final pin = pinController.text.trim();
+              if (pin.isNotEmpty) {
+                Navigator.pop(ctx);
+                _hasScanned = true;
+                setState(() {});
+                unawaited(_completePairing(pin, 'Nursery Camera', '', 8899));
+              }
+            },
+            child: const Text('Connect', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _completePairing(String channelId, String cameraName, String targetIp, int targetPort) async {
@@ -240,7 +298,32 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
             ),
           ),
 
-          // 4. Verification & Transition Loading Overlay
+          // 4. Manual PIN Button at Bottom
+          if (!_hasScanned)
+            Positioned(
+              bottom: 36,
+              left: 24,
+              right: 24,
+              child: SizedBox(
+                height: 50,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E293B),
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFF818CF8)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  icon: const Icon(Icons.pin, color: Color(0xFF818CF8)),
+                  label: const Text(
+                    'Enter 6-Digit PIN Manually',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  onPressed: _showManualPinDialog,
+                ),
+              ),
+            ),
+
+          // 5. Verification & Transition Loading Overlay
           if (_hasScanned)
             Positioned.fill(
               child: Container(
@@ -252,12 +335,12 @@ class _BabyQrScannerScreenState extends State<BabyQrScannerScreen> {
                       CircularProgressIndicator(color: Color(0xFF10B981)),
                       SizedBox(height: 20),
                       Text(
-                        'QR Code Verified!',
+                        'Device Linked!',
                         style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Linking devices and starting camera...',
+                        'Starting Nursery Camera stream...',
                         style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
                       ),
                     ],

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/services/device_registry_service.dart';
 import '../../core/utils/network_utils.dart';
@@ -28,8 +29,15 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
   @override
   void initState() {
     super.initState();
-    final randomSuffix = 1000 + Random().nextInt(9000);
-    _channelId = 'ch_${DateTime.now().millisecondsSinceEpoch}_$randomSuffix';
+    final randomPin = 100000 + Random().nextInt(900000);
+    _channelId = randomPin.toString();
+
+    // Immediately save to local paired list so the camera is NEVER lost if the user exits
+    unawaited(_registryService.savePairedCameraLocal(
+      channelId: _channelId,
+      name: _nameController.text.trim(),
+    ));
+
     _startLocalPairingServer();
     _initChannelListener();
   }
@@ -65,14 +73,14 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
     if (!_registryService.isFirebaseAvailable) return;
     final docRef = FirebaseFirestore.instance.collection('channels').doc(_channelId);
 
-    // Initialize channel waiting for baby scan
+    // Initialize channel waiting for baby scan (with 3-second timeout)
     unawaited(docRef.set({
       'channel_id': _channelId,
       'is_paired': false,
       'is_online': false,
       'name': _nameController.text.trim(),
       'created_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true)).catchError((Object e) {
+    }, SetOptions(merge: true)).timeout(const Duration(seconds: 3)).catchError((Object e) {
       debugPrint('docRef.set notice: $e');
     }));
 
@@ -151,6 +159,7 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
     final qrPayload = jsonEncode({
       'app': 'ibnik',
       'channel_id': _channelId,
+      'pin': _channelId,
       'name': _nameController.text.trim(),
       'ip': _localIp ?? '',
       'port': 8899,
@@ -170,69 +179,129 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               const Text(
-                'Scan this QR from Baby Phone',
+                'Scan QR or Enter 6-Digit PIN',
                 style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               const Text(
-                'Open Ibnik on your nursery phone, tap "Baby Unit", and point its camera at this screen.',
+                'On your Baby Phone, open Ibnik, tap "Baby Unit", and scan this code or enter the 6-digit PIN.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
 
               // QR Code Card
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF4F46E5).withOpacity(0.35),
-                      blurRadius: 30,
-                      spreadRadius: 4,
+                      blurRadius: 28,
+                      spreadRadius: 3,
                     )
                   ],
                 ),
                 child: QrImageView(
                   data: qrPayload,
                   version: QrVersions.auto,
-                  size: 240,
+                  size: 220,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
 
-              // Waiting Indicator
+              // 6-Digit PIN Display Pill
+              InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: _channelId));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('PIN $_channelId copied to clipboard!')),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF4F46E5), width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'PIN: ',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        _channelId,
+                        style: const TextStyle(
+                          color: Color(0xFF818CF8),
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.copy_rounded, color: Colors.white54, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // PRIMARY ACTION: Start Monitoring Button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 4,
+                  ),
+                  icon: const Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 24),
+                  label: const Text(
+                    'Baby Phone Scanned? Start Monitoring',
+                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () => _onDevicePaired(_channelId, _nameController.text.trim()),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Auto-Waiting Status Indicator
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(16),
+                  color: const Color(0xFF1E293B).withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.white12),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      width: 18,
-                      height: 18,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFF4F46E5),
+                        color: Color(0xFF818CF8),
                       ),
                     ),
                     SizedBox(width: 12),
                     Text(
                       'Waiting for nursery camera to scan...',
-                      style: TextStyle(color: Colors.white, fontSize: 14),
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
               // Camera Name Field
               TextField(
@@ -251,13 +320,20 @@ class _ParentPairingScreenState extends State<ParentPairingScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) {
+                  unawaited(_registryService.savePairedCameraLocal(
+                    channelId: _channelId,
+                    name: _nameController.text.trim(),
+                  ));
+                  setState(() {});
+                },
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Pair once and reconnect forever from anywhere.',
-                style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
-              ),
+              if (_localIp != null)
+                Text(
+                  'Local Network IP: $_localIp',
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                ),
             ],
           ),
         ),

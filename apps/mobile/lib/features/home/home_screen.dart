@@ -437,15 +437,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                           width: 8,
                                           height: 8,
                                           decoration: BoxDecoration(
-                                            color: isOnline ? Colors.greenAccent : Colors.grey,
+                                            color: isOnline ? Colors.greenAccent : const Color(0xFF818CF8),
                                             shape: BoxShape.circle,
                                           ),
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          isOnline ? 'Online • $battery%' : 'Offline',
+                                          isOnline ? 'Online • $battery%' : 'Ready (Wi-Fi / Cloud)',
                                           style: TextStyle(
-                                            color: isOnline ? Colors.greenAccent : Colors.white38,
+                                            color: isOnline ? Colors.greenAccent : const Color(0xFF94A3B8),
                                             fontSize: 12,
                                           ),
                                         ),

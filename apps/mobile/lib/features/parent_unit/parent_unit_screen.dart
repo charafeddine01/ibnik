@@ -222,6 +222,59 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
     unawaited(_connectHybrid());
   }
 
+  void _showManualIpDialog() {
+    final ipController = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Enter Nursery IP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter the Wi-Fi IP address shown on the Baby Unit screen (e.g. 192.168.1.15):',
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: ipController,
+              keyboardType: TextInputType.text,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              decoration: InputDecoration(
+                hintText: '192.168.1.xxx',
+                hintStyle: const TextStyle(color: Colors.white24),
+                filled: true,
+                fillColor: const Color(0xFF0F172A),
+                prefixIcon: const Icon(Icons.wifi, color: Color(0xFF818CF8)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
+            onPressed: () {
+              final ip = ipController.text.trim();
+              if (ip.isNotEmpty) {
+                Navigator.pop(ctx);
+                setState(() => _statusText = 'Connecting directly to $ip...');
+                unawaited(_p2pClient.connectDirect(ip: ip, port: 8888, roomId: widget.roomId));
+              }
+            },
+            child: const Text('Connect Direct', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onStartTalking() {
     if (_isHandsFreeMic) return;
     setState(() => _isTalking = true);
@@ -373,14 +426,32 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
                                   style: const TextStyle(color: Colors.white54, fontSize: 13),
                                 ),
                                 const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF4F46E5),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  icon: const Icon(Icons.refresh, color: Colors.white),
-                                  label: const Text('Retry Connection', style: TextStyle(color: Colors.white)),
-                                  onPressed: _onRetry,
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF4F46E5),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      ),
+                                      icon: const Icon(Icons.refresh, color: Colors.white, size: 18),
+                                      label: const Text('Retry', style: TextStyle(color: Colors.white)),
+                                      onPressed: _onRetry,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        side: const BorderSide(color: Colors.white24),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      ),
+                                      icon: const Icon(Icons.wifi, color: Color(0xFF818CF8), size: 18),
+                                      label: const Text('Direct IP', style: TextStyle(color: Colors.white)),
+                                      onPressed: _showManualIpDialog,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
