@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_theme.dart';
 
 class MonitorSettings {
   final double noiseThreshold; // dB threshold for alert (40.0 - 85.0)
@@ -9,6 +10,8 @@ class MonitorSettings {
   final bool isBackgroundMonitoringEnabled;
   final bool keepScreenAwake;
   final bool lowBatteryAlertEnabled;
+  final AppThemeMode appThemeMode;
+  final String deviceRole; // 'parent', 'baby', or 'unset'
 
   const MonitorSettings({
     this.noiseThreshold = 65.0,
@@ -18,6 +21,8 @@ class MonitorSettings {
     this.isBackgroundMonitoringEnabled = true,
     this.keepScreenAwake = true,
     this.lowBatteryAlertEnabled = true,
+    this.appThemeMode = AppThemeMode.dark,
+    this.deviceRole = 'unset',
   });
 
   MonitorSettings copyWith({
@@ -28,6 +33,8 @@ class MonitorSettings {
     bool? isBackgroundMonitoringEnabled,
     bool? keepScreenAwake,
     bool? lowBatteryAlertEnabled,
+    AppThemeMode? appThemeMode,
+    String? deviceRole,
   }) {
     return MonitorSettings(
       noiseThreshold: noiseThreshold ?? this.noiseThreshold,
@@ -37,6 +44,8 @@ class MonitorSettings {
       isBackgroundMonitoringEnabled: isBackgroundMonitoringEnabled ?? this.isBackgroundMonitoringEnabled,
       keepScreenAwake: keepScreenAwake ?? this.keepScreenAwake,
       lowBatteryAlertEnabled: lowBatteryAlertEnabled ?? this.lowBatteryAlertEnabled,
+      appThemeMode: appThemeMode ?? this.appThemeMode,
+      deviceRole: deviceRole ?? this.deviceRole,
     );
   }
 }
@@ -49,6 +58,8 @@ class SettingsService {
   static const String _kBackground = 'setting_background';
   static const String _kWakelock = 'setting_wakelock';
   static const String _kLowBattery = 'setting_low_battery';
+  static const String _kAppTheme = 'setting_app_theme';
+  static const String _kDeviceRole = 'setting_device_role';
 
   static SettingsService? _instance;
   factory SettingsService() => _instance ??= SettingsService._();
@@ -60,6 +71,13 @@ class SettingsService {
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // Parse theme
+    final themeStr = prefs.getString(_kAppTheme) ?? 'dark';
+    AppThemeMode theme = AppThemeMode.dark;
+    if (themeStr == 'light') theme = AppThemeMode.light;
+    if (themeStr == 'moderate') theme = AppThemeMode.moderate;
+
     final loaded = MonitorSettings(
       noiseThreshold: prefs.getDouble(_kNoiseThreshold) ?? 65.0,
       isCryAlertEnabled: prefs.getBool(_kCryAlert) ?? true,
@@ -68,6 +86,8 @@ class SettingsService {
       isBackgroundMonitoringEnabled: prefs.getBool(_kBackground) ?? true,
       keepScreenAwake: prefs.getBool(_kWakelock) ?? true,
       lowBatteryAlertEnabled: prefs.getBool(_kLowBattery) ?? true,
+      appThemeMode: theme,
+      deviceRole: prefs.getString(_kDeviceRole) ?? 'unset',
     );
     settingsNotifier.value = loaded;
   }
@@ -82,5 +102,15 @@ class SettingsService {
     await prefs.setBool(_kBackground, newSettings.isBackgroundMonitoringEnabled);
     await prefs.setBool(_kWakelock, newSettings.keepScreenAwake);
     await prefs.setBool(_kLowBattery, newSettings.lowBatteryAlertEnabled);
+    await prefs.setString(_kAppTheme, newSettings.appThemeMode.name);
+    await prefs.setString(_kDeviceRole, newSettings.deviceRole);
+  }
+
+  Future<void> setTheme(AppThemeMode mode) async {
+    await updateSettings(current.copyWith(appThemeMode: mode));
+  }
+
+  Future<void> setDeviceRole(String role) async {
+    await updateSettings(current.copyWith(deviceRole: role));
   }
 }
