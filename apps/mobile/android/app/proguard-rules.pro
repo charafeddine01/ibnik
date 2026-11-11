@@ -10,11 +10,37 @@
 -dontwarn io.flutter.embedding.engine.deferredcomponents.**
 -ignorewarnings
 
-# WebRTC Native Bindings
+# Native Methods Preservation
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# WebRTC Native Bindings & Camera
 -keep class org.webrtc.** { *; }
 -dontwarn org.webrtc.**
 -keep class com.cloudwebrtc.webrtc.** { *; }
 -dontwarn com.cloudwebrtc.webrtc.**
+
+# Audioplayers & Native Audio Engine
+-keep class audioplayers.net.codeengine.audioplayers.** { *; }
+-keep class xyz.luan.audioplayers.** { *; }
+-dontwarn xyz.luan.audioplayers.**
+-keep class com.google.android.exoplayer2.** { *; }
+-dontwarn com.google.android.exoplayer2.**
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+-keep public class android.media.MediaPlayer { *; }
+-keep public class android.media.MediaPlayer* { *; }
+
+# Torch Light Plugin
+-keep class com.svprdga.torch_light.** { *; }
+-dontwarn com.svprdga.torch_light.**
+
+# Hardware Plus Plugins (Battery, Wakelock)
+-keep class dev.fluttercommunity.plus.battery.** { *; }
+-dontwarn dev.fluttercommunity.plus.battery.**
+-keep class dev.fluttercommunity.plus.wakelock.** { *; }
+-dontwarn dev.fluttercommunity.plus.wakelock.**
 
 # Firebase & Google Play Services
 -keepattributes *Annotation*

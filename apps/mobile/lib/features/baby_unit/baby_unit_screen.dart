@@ -99,6 +99,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
         debugPrint('BabyUnit: Cloud WebRTC call disconnected');
         if (mounted) setState(() => _isParentConnected = false);
       },
+      onCommandReceived: _handleRemoteCommand,
     );
 
     // 3. Embedded Local P2P Server Backup
@@ -163,28 +164,7 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
     };
 
     // 5. Remote controls callback
-    _webrtcService.onTelemetryReceived = (data) {
-      final cmd = data['command'] as String?;
-      if (cmd == 'toggle_torch') {
-        _toggleTorch();
-      } else if (cmd == 'flip_camera') {
-        _webrtcService.switchCamera();
-      } else if (cmd == 'toggle_baby_camera') {
-        final enabled = data['enabled'] as bool? ?? true;
-        _webrtcService.setCameraEnabled(enabled);
-        if (mounted) setState(() {});
-      } else if (cmd == 'toggle_baby_mic') {
-        final enabled = data['enabled'] as bool? ?? true;
-        _webrtcService.setMicrophoneMute(!enabled);
-        if (mounted) setState(() {});
-      } else if (cmd == 'play_lullaby') {
-        final trackIndex = data['track_index'] as int? ?? 0;
-        final duration = data['duration_minutes'] as int? ?? 30;
-        _lullabyService.playTrack(LullabyTrack.values[trackIndex], timerMinutes: duration);
-      } else if (cmd == 'stop_lullaby') {
-        _lullabyService.stop();
-      }
-    };
+    _webrtcService.onTelemetryReceived = _handleRemoteCommand;
 
     _webrtcService.onConnectionConnected = () {
       debugPrint('BabyUnit: WebRTC stream connected!');
@@ -208,20 +188,62 @@ class _BabyUnitScreenState extends State<BabyUnitScreen> {
     });
   }
 
+  String? _lastCommandId;
+
+  void _handleRemoteCommand(Map<String, dynamic> data) {
+    final cmdId = data['_id']?.toString();
+    if (cmdId != null && cmdId == _lastCommandId) {
+      return; // Already processed via dual channel
+    }
+    if (cmdId != null) {
+      _lastCommandId = cmdId;
+    }
+
+    final cmd = data['command'] as String?;
+    debugPrint('BabyUnit: executing command: $cmd');
+    if (cmd == 'toggle_torch') {
+      _toggleTorch();
+    } else if (cmd == 'flip_camera') {
+      _webrtcService.switchCamera();
+    } else if (cmd == 'toggle_baby_camera') {
+      final enabled = data['enabled'] as bool? ?? true;
+      _webrtcService.setCameraEnabled(enabled);
+      if (mounted) setState(() {});
+    } else if (cmd == 'toggle_baby_mic') {
+      final enabled = data['enabled'] as bool? ?? true;
+      _webrtcService.setMicrophoneMute(!enabled);
+      if (mounted) setState(() {});
+    } else if (cmd == 'play_lullaby') {
+      final trackIndex = data['track_index'] as int? ?? 0;
+      final duration = data['duration_minutes'] as int? ?? 30;
+      if (trackIndex >= 0 && trackIndex < LullabyTrack.values.length) {
+        _lullabyService.playTrack(LullabyTrack.values[trackIndex], timerMinutes: duration);
+      }
+    } else if (cmd == 'stop_lullaby') {
+      _lullabyService.stop();
+    }
+  }
+
   Future<void> _toggleTorch() async {
     try {
-      if (_isTorchOn) {
-        await TorchLight.disableTorch();
-      } else {
-        await TorchLight.enableTorch();
+      final target = !_isTorchOn;
+      // 1. First try controlling torch via WebRTC camera track (no CAMERA_IN_USE conflict)
+      bool handled = await _webrtcService.setTorch(target);
+      if (!handled) {
+        // 2. Fallback to TorchLight plugin
+        if (target) {
+          await TorchLight.enableTorch();
+        } else {
+          await TorchLight.disableTorch();
+        }
       }
-      setState(() => _isTorchOn = !_isTorchOn);
+      setState(() => _isTorchOn = target);
       _webrtcService.sendTelemetry({
         'type': 'torch_state',
         'is_on': _isTorchOn,
       });
     } catch (e) {
-      debugPrint('Failed to toggle torch: $e');
+      debugPrint('BabyUnit: Failed to toggle torch: $e');
     }
   }
 

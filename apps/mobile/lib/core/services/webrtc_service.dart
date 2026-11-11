@@ -186,6 +186,9 @@ class WebRTCService {
   }
 
   void _setupDataChannel(RTCDataChannel channel) {
+    channel.onDataChannelState = (state) {
+      debugPrint('WebRTCService: DataChannel state -> $state');
+    };
     channel.onMessage = (RTCDataChannelMessage message) {
       if (message.isBinary) return;
       try {
@@ -197,10 +200,12 @@ class WebRTCService {
     };
   }
 
-  void sendTelemetry(Map<String, dynamic> data) {
+  bool sendTelemetry(Map<String, dynamic> data) {
     if (_dataChannel != null && _dataChannel!.state == RTCDataChannelState.RTCDataChannelOpen) {
       _dataChannel!.send(RTCDataChannelMessage(jsonEncode(data)));
+      return true;
     }
+    return false;
   }
 
   Future<RTCSessionDescription> createAndSendOfferRaw() async {
@@ -349,11 +354,35 @@ class WebRTCService {
     }
   }
 
+  Future<bool> setTorch(bool on) async {
+    if (localStream != null) {
+      final videoTrack = localStream!.getVideoTracks().firstOrNull;
+      if (videoTrack != null) {
+        try {
+          final hasTorch = await videoTrack.hasTorch();
+          if (hasTorch) {
+            await videoTrack.setTorch(on);
+            debugPrint('WebRTCService: torch toggled to $on');
+            return true;
+          }
+        } catch (e) {
+          debugPrint('WebRTCService: Error toggling torch: $e');
+        }
+      }
+    }
+    return false;
+  }
+
   Future<void> switchCamera() async {
     if (localStream != null) {
       final videoTrack = localStream!.getVideoTracks().firstOrNull;
       if (videoTrack != null) {
-        await Helper.switchCamera(videoTrack);
+        try {
+          await Helper.switchCamera(videoTrack, null, localStream);
+          debugPrint('WebRTCService: camera switched successfully');
+        } catch (e) {
+          debugPrint('WebRTCService: Error switching camera: $e');
+        }
       }
     }
   }

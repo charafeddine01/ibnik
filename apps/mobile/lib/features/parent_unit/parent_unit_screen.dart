@@ -198,12 +198,11 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
   Future<void> _connectHybrid() async {
     setState(() => _statusText = 'Connecting to ${widget.deviceName ?? "Baby Unit"}...');
 
-    // 1. Always attempt local Wi-Fi discovery & direct connection (fastest!)
-    unawaited(_connectLocal());
-
-    // 2. Concurrently attempt cloud signaling over Firestore if available
-    if (widget.isCloudCall && _firestoreSignaling.isFirebaseAvailable) {
+    // Prioritize Cloud signaling over Firestore
+    if (_firestoreSignaling.isFirebaseAvailable) {
       unawaited(_connectCloud());
+    } else {
+      unawaited(_connectLocal());
     }
   }
 
@@ -327,6 +326,16 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
     _webrtcService.setMicrophoneMute(false);
   }
 
+  void _sendRemoteCommand(Map<String, dynamic> command) {
+    // 1. Send over WebRTC DataChannel (instant peer-to-peer delivery if open)
+    _webrtcService.sendTelemetry(command);
+
+    // 2. Concurrently send over Firestore cloud signaling (guaranteed 100% delivery)
+    if (_firestoreSignaling.isFirebaseAvailable && widget.roomId.isNotEmpty) {
+      unawaited(_firestoreSignaling.sendCommand(widget.roomId, command));
+    }
+  }
+
   void _onStopTalking() {
     if (_isHandsFreeMic) return;
     setState(() => _isTalking = false);
@@ -334,16 +343,16 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
   }
 
   void _toggleBabyTorch() {
-    _webrtcService.sendTelemetry({'command': 'toggle_torch'});
+    _sendRemoteCommand({'command': 'toggle_torch'});
   }
 
   void _flipBabyCamera() {
-    _webrtcService.sendTelemetry({'command': 'flip_camera'});
+    _sendRemoteCommand({'command': 'flip_camera'});
   }
 
   void _toggleBabyCamera() {
     setState(() => _isBabyCameraEnabled = !_isBabyCameraEnabled);
-    _webrtcService.sendTelemetry({
+    _sendRemoteCommand({
       'command': 'toggle_baby_camera',
       'enabled': _isBabyCameraEnabled,
     });
@@ -357,7 +366,7 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
 
   void _toggleBabyMic() {
     setState(() => _isBabyMicEnabled = !_isBabyMicEnabled);
-    _webrtcService.sendTelemetry({
+    _sendRemoteCommand({
       'command': 'toggle_baby_mic',
       'enabled': _isBabyMicEnabled,
     });
@@ -395,7 +404,7 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
             _isLullabyPlaying = true;
             _activeTrack = track;
           });
-          _webrtcService.sendTelemetry({
+          _sendRemoteCommand({
             'command': 'play_lullaby',
             'track_index': track.index,
             'duration_minutes': timerMinutes,
@@ -406,7 +415,7 @@ class _ParentUnitScreenState extends State<ParentUnitScreen> {
             _isLullabyPlaying = false;
             _activeTrack = null;
           });
-          _webrtcService.sendTelemetry({'command': 'stop_lullaby'});
+          _sendRemoteCommand({'command': 'stop_lullaby'});
         },
       ),
     );

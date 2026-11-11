@@ -29,15 +29,15 @@ extension LullabyTrackExtension on LullabyTrack {
   String get assetPath {
     switch (this) {
       case LullabyTrack.whiteNoise:
-        return 'assets/lullabies/white_noise.mp3';
+        return 'assets/lullabies/white_noise.wav';
       case LullabyTrack.heartbeat:
-        return 'assets/lullabies/heartbeat.mp3';
+        return 'assets/lullabies/heartbeat.wav';
       case LullabyTrack.gentleRain:
-        return 'assets/lullabies/rain.mp3';
+        return 'assets/lullabies/rain.wav';
       case LullabyTrack.classicalLullaby:
-        return 'assets/lullabies/brahms.mp3';
+        return 'assets/lullabies/brahms.wav';
       case LullabyTrack.oceanWaves:
-        return 'assets/lullabies/waves.mp3';
+        return 'assets/lullabies/waves.wav';
     }
   }
 }

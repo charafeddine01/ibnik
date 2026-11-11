@@ -14,6 +14,7 @@ class FirestoreSignalingService {
   StreamSubscription<QuerySnapshot>? _candidateSubscription;
   Timer? _retryTimer;
   String? _currentCallId;
+  String? _lastHandledCommandId;
   bool _hasReceivedOffer = false;
   bool _isHandlingCall = false;
 
@@ -31,6 +32,7 @@ class FirestoreSignalingService {
     required WebRTCService webrtcService,
     required VoidCallback onConnected,
     required VoidCallback onDisconnected,
+    void Function(Map<String, dynamic> command)? onCommandReceived,
   }) async {
     _currentCallId = callId;
     _isHandlingCall = false;
@@ -140,7 +142,21 @@ class FirestoreSignalingService {
         onConnected();
       }
 
-      // 3. Call ended or reset to idle
+      // 3. Remote commands from Parent
+      if (data.containsKey('command')) {
+        try {
+          final cmd = data['command'] as Map<String, dynamic>;
+          final cmdId = cmd['_id'] as String?;
+          if (cmdId != null && cmdId != _lastHandledCommandId) {
+            _lastHandledCommandId = cmdId;
+            onCommandReceived?.call(cmd);
+          }
+        } catch (e) {
+          debugPrint('FirestoreSignaling: error parsing command: $e');
+        }
+      }
+
+      // 4. Call ended or reset to idle
       if (status == 'ended' || status == 'idle') {
         _isHandlingCall = false;
         if (status == 'ended') {
@@ -304,6 +320,21 @@ class FirestoreSignalingService {
       } catch (_) {}
     }
     await dispose();
+  }
+
+  /// Sends a remote control command to the Baby Unit via Firestore.
+  Future<void> sendCommand(String callId, Map<String, dynamic> commandData) async {
+    try {
+      await _callRef(callId).set({
+        'command': {
+          ...commandData,
+          '_id': DateTime.now().microsecondsSinceEpoch.toString(),
+        },
+      }, SetOptions(merge: true));
+      debugPrint('FirestoreSignaling: sent remote command: $commandData');
+    } catch (e) {
+      debugPrint('FirestoreSignaling: error sending command: $e');
+    }
   }
 
   /// Cleans candidate subcollections for a fresh call.
