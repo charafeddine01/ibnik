@@ -36,8 +36,8 @@ jobs:
           COMMIT=$(git rev-parse --short HEAD)
           DATE=$(git log -1 --format=%cd --date=format:'%B %d, %Y')
           
-          mkdir -p web/landing
-          cat <<EOF > web/landing/version.json
+          mkdir -p web/landing public_html
+          cat <<EOF > public_html/version.json
           {
             "version": "${TAG}",
             "commit": "${COMMIT}",
@@ -47,8 +47,9 @@ jobs:
             "status": "Online"
           }
           EOF
+          cp public_html/version.json web/landing/version.json
           echo "Generated version.json:"
-          cat web/landing/version.json
+          cat public_html/version.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -56,7 +57,7 @@ jobs:
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'web/landing'
+          path: 'public_html'
 
       - name: Deploy to GitHub Pages
         id: deployment

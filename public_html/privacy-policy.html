@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - Ibnik</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; color: #334155; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+    h1 { color: #0F172A; font-size: 32px; margin-bottom: 8px; }
+    h2 { color: #1E293B; font-size: 20px; margin-top: 32px; margin-bottom: 12px; }
+    p { margin-bottom: 16px; }
+    ul { margin-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; }
+    .updated { color: #64748B; font-size: 14px; margin-bottom: 32px; }
+    a { color: #4F46E5; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy for Ibnik</h1>
+  <div class="updated">Last updated: November 2026</div>
+
+  <p><strong>Ibnik</strong> ("we", "our", or "the app") is committed to protecting your and your family's privacy. This Privacy Policy describes how we handle information in our application.</p>
+
+  <h2>1. Zero Data Collection & Zero Cloud Storage</h2>
+  <p>Ibnik does not collect, harvest, store, or sell any personal data, audio recordings, video streams, or device identifiers. All camera and audio streams are processed exclusively in real-time on your devices.</p>
+
+  <h2>2. Device Permissions Used</h2>
+  <ul>
+    <li><strong>Camera:</strong> Used exclusively when the device operates in "Baby Unit" mode to capture live video to stream to your paired Parent Unit. Video frames are never saved to disk or uploaded to any server.</li>
+    <li><strong>Microphone:</strong> Used to stream audio from the Baby Unit to the Parent Unit and to enable two-way talkback from the Parent Unit. Also used for local decibel level calculation for cry alerts. Audio is never recorded or saved.</li>
+    <li><strong>Local Network / Wi-Fi:</strong> Used to discover and connect paired devices directly over your home Wi-Fi network (P2P WebRTC) without passing through external internet servers whenever possible.</li>
+    <li><strong>Notifications:</strong> Used to alert parents in the event of baby crying, room noise threshold exceedance, or disconnection.</li>
+    <li><strong>Foreground Service & Background Execution:</strong> Used to maintain continuous audio streaming, baby crying detection, and connection keep-alive even when the phone screen is locked or turned off. A persistent notification is displayed while monitoring is active.</li>
+    <li><strong>Battery Optimization Exemption:</strong> Requested optionally to prevent the Android operating system (Doze Mode) from suspending the baby monitor service when the device is locked.</li>
+  </ul>
+
+  <h2>3. End-to-End Encryption (E2EE)</h2>
+  <p>All video and audio communications utilize WebRTC industry-standard <strong>DTLS-SRTP encryption</strong>. When operating through our TURN relay servers (in cases where direct P2P NAT traversal is blocked by cellular firewalls), the relay only forwards encrypted packets and has zero cryptographic capability to decrypt your media.</p>
+
+  <h2>4. Third-Party Services & Ads</h2>
+  <p>Ibnik contains <strong>zero third-party advertising SDKs</strong> and <strong>zero user tracking SDKs</strong>.</p>
+
+  <h2>5. Contact Us</h2>
+  <p>If you have any questions about this Privacy Policy, you can reach out via GitHub or email at <a href="mailto:admin@charafeddine.xyz">admin@charafeddine.xyz</a>.</p>
+</body>
+</html>
