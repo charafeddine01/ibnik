@@ -3,10 +3,10 @@ name: "Deploy Landing Page & Privacy Policy to GitHub Pages"
 on:
   push:
     branches:
-      - main
-    paths:
-      - 'web/landing/**'
-      - '.github/workflows/deploy-pages.yml'
+      - production
+  release:
+    types:
+      - published
   workflow_dispatch:
 
 permissions:
@@ -27,6 +27,28 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Dynamic Version Metadata
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.13")
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(git log -1 --format=%cd --date=format:'%B %d, %Y')
+          
+          mkdir -p web/landing
+          cat <<EOF > web/landing/version.json
+          {
+            "version": "${TAG}",
+            "commit": "${COMMIT}",
+            "releaseDate": "${DATE}",
+            "apkUrl": "https://github.com/${{ github.repository }}/releases/latest/download/app-release-${TAG}.apk",
+            "repoUrl": "https://github.com/${{ github.repository }}",
+            "status": "Online"
+          }
+          EOF
+          echo "Generated version.json:"
+          cat web/landing/version.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
